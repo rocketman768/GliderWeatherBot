@@ -5,3 +5,4 @@ notifications:
       - 752558+rocketman768@users.noreply.github.com
     on_success: never
     on_failure: always
+script: pytest
