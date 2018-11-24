@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-import xcscore
+import wavescore
 
-def test_placeholder():
-    assert True
+def test_classifierFactory():
+    for name in wavescore.WaveClassifierFactory.allClassifierNames():
+        classifier = wavescore.WaveClassifierFactory.classifier(name)
+        assert classifier

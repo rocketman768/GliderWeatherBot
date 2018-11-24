@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import xcscore
+import twitterbot
 
 def test_placeholder():
     assert True

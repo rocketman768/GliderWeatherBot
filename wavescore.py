@@ -105,9 +105,15 @@ class KCVHWaveClassifier:
 
 class WaveClassifierFactory:
     @staticmethod
+    def __classFromName():
+        return {'KCVH': KCVHWaveClassifier}
+    @staticmethod
+    def allClassifierNames():
+        return WaveClassifierFactory.__classFromName().keys()
+    @staticmethod
     def classifier(name):
         classFromName = {'KCVH': KCVHWaveClassifier}
-        return classFromName[name]()
+        return WaveClassifierFactory.__classFromName()[name]()
 
 def featuresAndLabelsFromDataset(pos, neg, classifier):
     features = []

@@ -155,9 +155,14 @@ class KCVHXCClassifier(AbstractXCClassifier):
 
 class XCClassifierFactory:
     @staticmethod
+    def __classFromName():
+        return {'KCVH': KCVHXCClassifier}
+    @staticmethod
+    def allClassifierNames():
+        return XCClassifierFactory.__classFromName().keys()
+    @staticmethod
     def classifier(name):
-        classFromName = {'KCVH': KCVHXCClassifier}
-        return classFromName[name]()
+        return XCClassifierFactory.__classFromName()[name]()
 
 # -- Just for learning --
 

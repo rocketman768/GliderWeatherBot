@@ -32,40 +32,6 @@ import raspdata
 import wavescore
 import xcscore
 
-# Arguments
-parser = argparse.ArgumentParser(description='Tweet about good soaring forecasts')
-parser.add_argument('-n', '--dry-run', action='store_true', help='Do not actually tweet anything.')
-parser.add_argument('-l', '--log-path', type=str, default='/home/pi', metavar='path', help='Logging path')
-parser.add_argument('-u', '--wave-url', type=str, default='https://rasp.nfshost.com/hollister', metavar='url', help='Base URL for wave RASP data')
-parser.add_argument('-v', '--xc-url', type=str, default='https://rasp.nfshost.com/norcal-coast', metavar='url', help='Base URL for XC RASP data')
-parser.add_argument('-d', '--wave-lookahead', type=int, default=3, metavar='ndays', help='How many days to look ahead for wave forecasts')
-parser.add_argument('-e', '--xc-lookahead', type=int, default=7, metavar='ndays', help='How many days to look ahead for XC forecasts')
-parser.add_argument('-t', '--wave-times', nargs='+', type=int, metavar='lst', default=[1000, 1100, 1200, 1300, 1400, 1500, 1600], help='List of local times to check for wave conditions')
-parser.add_argument('-s', '--xc-times', nargs='+', type=int, default=[1400], metavar='lst', help='List of local times to check for XC conditions')
-parser.add_argument('-a', '--xc-start-coordinate', nargs=2, type=int, default=xcscore.RELEASE_RANCH, metavar='x', help='Starting coordinate for XC classification')
-parser.add_argument('-b', '--xc-end-coordinate', nargs=2, type=int, default=xcscore.BLACK_MOUNTAIN, metavar='x', help='End coordinate for XC classification')
-parser.add_argument('-c', '--wave-classifier', type=str, default='KCVH', metavar='name', help='Name of the wave classifier')
-parser.add_argument('-f', '--xc-classifier', type=str, default='KCVH', metavar='name', help='Name of the XC classifier')
-args = parser.parse_args()
-
-# Environment variables
-consumer_key = os.environ['WEATHERBOT_CONSUMER_KEY']
-consumer_secret = os.environ['WEATHERBOT_CONSUMER_SECRET']
-access_token = os.environ['WEATHERBOT_ACCESS_TOKEN']
-access_token_secret = os.environ['WEATHERBOT_TOKEN_SECRET']
-
-# Set up Twitter API
-auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-auth.set_access_token(access_token, access_token_secret)
-api = tweepy.API(auth)
-
-# Set up logging
-logging.basicConfig(
-    filename=None if args.dry_run else '{0}/gliderweatherbot.log'.format(args.log_path),
-    level=logging.DEBUG,
-    format='%(asctime)s %(message)s'
-)
-
 # Return a random string of lowercase letters of the given length
 def randomString(length):
     letters = string.ascii_lowercase
@@ -86,6 +52,17 @@ def download(url, path):
 
 # This function blocks for 30 minutes for each retry.
 def tweet(message, retries, imgUrl=None, dryRun=False):
+    # Environment variables
+    consumer_key = os.environ['WEATHERBOT_CONSUMER_KEY']
+    consumer_secret = os.environ['WEATHERBOT_CONSUMER_SECRET']
+    access_token = os.environ['WEATHERBOT_ACCESS_TOKEN']
+    access_token_secret = os.environ['WEATHERBOT_TOKEN_SECRET']
+
+    # Set up Twitter API
+    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+    auth.set_access_token(access_token, access_token_secret)
+    api = tweepy.API(auth)
+
     logging.info('Tweeting: \"{0}\" {1}'.format(message, 'with image ' + imgUrl if imgUrl else ''))
 
     # Exit now if it is just a dry run
@@ -133,13 +110,11 @@ def daysString(dayOffsets):
     return ret
 
 # Returns a set of good wave days and an image URL
-def goodWaveDays(classifier):
+def goodWaveDays(classifier, baseURL, times, lookahead):
     waveDays = set()
     maxWaveScore = -1000.0
     waveImageURL = None
-    baseURL = args.wave_url
-    times=args.wave_times
-    for day in range(args.wave_lookahead):
+    for day in range(lookahead):
         date = datetime.date.today() + datetime.timedelta(day)
         isWaveDay = False
         isHardToClassify = False
@@ -168,13 +143,9 @@ def goodWaveDays(classifier):
     return waveDays, waveImageURL
 
 # Detect XC days
-def goodXCDays(classifier):
+def goodXCDays(classifier, baseURL, times, lookahead, startCoordinate, endCoordinate):
     xcDays = set()
-    baseURL = args.xc_url
-    times = args.xc_times
-    startCoordinate = tuple(args.xc_start_coordinate)
-    endCoordinate = tuple(args.xc_end_coordinate)
-    for day in range(args.xc_lookahead):
+    for day in range(lookahead):
         date = datetime.date.today() + datetime.timedelta(day)
         isXcDay = False
         isHardToClassify = False
@@ -198,42 +169,67 @@ def goodXCDays(classifier):
 
     return xcDays
 
-with open('version.txt') as vFile:
-    logging.info('Version {0}'.format(vFile.readline()))
+if __name__=='__main__':
 
-# We spawn threads for tweeting, since we want to potentially do a long-waiting
-# retry loop in case something is temporarily-wrong with the network.
-tweetThreads = []
+    # Arguments
+    parser = argparse.ArgumentParser(description='Tweet about good soaring forecasts')
+    parser.add_argument('-n', '--dry-run', action='store_true', help='Do not actually tweet anything.')
+    parser.add_argument('-l', '--log-path', type=str, default='/home/pi', metavar='path', help='Logging path')
+    parser.add_argument('-u', '--wave-url', type=str, default='https://rasp.nfshost.com/hollister', metavar='url', help='Base URL for wave RASP data')
+    parser.add_argument('-v', '--xc-url', type=str, default='https://rasp.nfshost.com/norcal-coast', metavar='url', help='Base URL for XC RASP data')
+    parser.add_argument('-d', '--wave-lookahead', type=int, default=3, metavar='ndays', help='How many days to look ahead for wave forecasts')
+    parser.add_argument('-e', '--xc-lookahead', type=int, default=7, metavar='ndays', help='How many days to look ahead for XC forecasts')
+    parser.add_argument('-t', '--wave-times', nargs='+', type=int, metavar='lst', default=[1000, 1100, 1200, 1300, 1400, 1500, 1600], help='List of local times to check for wave conditions')
+    parser.add_argument('-s', '--xc-times', nargs='+', type=int, default=[1400], metavar='lst', help='List of local times to check for XC conditions')
+    parser.add_argument('-a', '--xc-start-coordinate', nargs=2, type=int, default=xcscore.RELEASE_RANCH, metavar='x', help='Starting coordinate for XC classification')
+    parser.add_argument('-b', '--xc-end-coordinate', nargs=2, type=int, default=xcscore.BLACK_MOUNTAIN, metavar='x', help='End coordinate for XC classification')
+    parser.add_argument('-c', '--wave-classifier', type=str, default='KCVH', metavar='name', help='Name of the wave classifier')
+    parser.add_argument('-f', '--xc-classifier', type=str, default='KCVH', metavar='name', help='Name of the XC classifier')
+    args = parser.parse_args()
 
-waveClassifier = wavescore.WaveClassifierFactory.classifier(args.wave_classifier)
-xcClassifier = xcscore.XCClassifierFactory.classifier(args.xc_classifier)
+    # Set up logging
+    logging.basicConfig(
+        filename=None if args.dry_run else '{0}/gliderweatherbot.log'.format(args.log_path),
+        level=logging.DEBUG,
+        format='%(asctime)s %(message)s'
+    )
 
-# Run wave day detection
-(waveDays, waveImageURL) = goodWaveDays(waveClassifier)
-if len(waveDays) > 0:
-    tweetString = 'Wave Alert! These days may have wave: ' + daysString(waveDays) + '.'
-    tweetString += '\n.\n' + args.wave_url
+    with open('version.txt') as vFile:
+        logging.info('Version {0}'.format(vFile.readline()))
 
-    # Try to tweet it out
-    tweetThread = threading.Thread(target=tweet, args=(tweetString, 4, waveImageURL, args.dry_run))
-    tweetThreads.append(tweetThread)
-    tweetThread.start()
-else:
-    logging.info('I do not see wave in the forecast.')
+    # We spawn threads for tweeting, since we want to potentially do a long-waiting
+    # retry loop in case something is temporarily-wrong with the network.
+    tweetThreads = []
 
-# Run XC day detection
-xcDays = goodXCDays(xcClassifier)
-if len(xcDays) > 0:
-    tweetString = 'XC Alert! These days may be runnable: ' + daysString(xcDays) + '.'
-    tweetString += '\n.\n' + args.xc_url
+    waveClassifier = wavescore.WaveClassifierFactory.classifier(args.wave_classifier)
+    xcClassifier = xcscore.XCClassifierFactory.classifier(args.xc_classifier)
 
-    # Try to tweet it out
-    tweetThread = threading.Thread(target=tweet, args=(tweetString, 4, None, args.dry_run))
-    tweetThreads.append(tweetThread)
-    tweetThread.start()
-else:
-    logging.info('I do not see XC in the forecast.')
+    # Run wave day detection
+    (waveDays, waveImageURL) = goodWaveDays(waveClassifier, args.wave_url, args.wave_times, args.wave_lookahead)
+    if len(waveDays) > 0:
+        tweetString = 'Wave Alert! These days may have wave: ' + daysString(waveDays) + '.'
+        tweetString += '\n.\n' + args.wave_url
 
-# Wait for all threads to complete
-for thread in tweetThreads:
-    thread.join()
+        # Try to tweet it out
+        tweetThread = threading.Thread(target=tweet, args=(tweetString, 4, waveImageURL, args.dry_run))
+        tweetThreads.append(tweetThread)
+        tweetThread.start()
+    else:
+        logging.info('I do not see wave in the forecast.')
+
+    # Run XC day detection
+    xcDays = goodXCDays(xcClassifier, args.xc_url, args.xc_times, args.xc_lookahead, tuple(args.xc_start_coordinate), tuple(args.xc_end_coordinate))
+    if len(xcDays) > 0:
+        tweetString = 'XC Alert! These days may be runnable: ' + daysString(xcDays) + '.'
+        tweetString += '\n.\n' + args.xc_url
+
+        # Try to tweet it out
+        tweetThread = threading.Thread(target=tweet, args=(tweetString, 4, None, args.dry_run))
+        tweetThreads.append(tweetThread)
+        tweetThread.start()
+    else:
+        logging.info('I do not see XC in the forecast.')
+
+    # Wait for all threads to complete
+    for thread in tweetThreads:
+        thread.join()
