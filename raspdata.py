@@ -26,6 +26,8 @@ except ImportError:
 import itertools
 import math
 
+import pgzfile
+
 def rectDomain(dims):
     def listProduct(listOfIterables):
         return itertools.product(*listOfIterables)
@@ -53,8 +55,11 @@ def area(image, dims, predicate):
 def parseData(fileStream):
     data = [];
 
-    # First line is garbage
-    fileStream.readline()
+    # First line is garbage (unless this is a PGZ image)
+    firstLine = fileStream.readline()
+    if 'PGZ' in firstLine:
+        fileStream.seek(0)
+        return pgzfile.readPgzImage(fileStream)
     # Title is next
     title = fileStream.readline()
     params1 = fileStream.readline()
