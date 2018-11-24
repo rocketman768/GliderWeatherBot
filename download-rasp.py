@@ -74,7 +74,7 @@ def downloadRaspFiles(filesToDownload):
         with open(filename, 'w') as output:
             if isPgz:
                 (data, dims) = raspdata.parseData(response)
-                pgmfile.writePgzImage(data, dims, output)
+                pgzfile.writePgzImage(data, dims, output)
             else:
                 output.write(response.read())
 
