@@ -22,11 +22,15 @@ import json
 import urllib2
 import threading
 
+import pgzfile
+import raspdata
+
 parser = argparse.ArgumentParser(description='Download RASP files')
 parser.add_argument('-o', '--output-dir', type=str)
 parser.add_argument('-u', '--url', type=str, default='https://rasp.nfshost.com/hollister')
 parser.add_argument('-d', '--day', type=int, default=0, help='Offset in days from today')
 parser.add_argument('-t', '--type', type=str, choices=['all', 'raw', 'images'], default='raw', help='What kind of files to download')
+parser.add_argument('-b', '--binary', action='store_true', help='Write data files in binary format')
 args = parser.parse_args()
 
 baseURL = args.url
@@ -60,14 +64,19 @@ def downloadRaspFiles(filesToDownload):
         url = baseURL + '/OUT+' + str(forecastOffset) + '/FCST/' + raspFile
         try:
             response = urllib2.urlopen(url)
-            data = response.read()
         except (KeyboardInterrupt, SystemExit):
             raise
         except:
             print('ERROR: resource not found on server')
             continue
-        with open(outputDir + '/' + raspFile, 'w') as output:
-            output.write(data)
+        isPgz = args.binary and '.data' in raspFile
+        filename = '{0}/{1}{2}'.format(outputDir, raspFile, '.pgz' if isPgz else '')
+        with open(filename, 'w') as output:
+            if isPgz:
+                (data, dims) = raspdata.parseData(response)
+                pgmfile.writePgzImage(data, dims, output)
+            else:
+                output.write(response.read())
 
 NUM_THREADS = 4
 filesToDownloadPerThread = splitList(filesToDownload, NUM_THREADS)
