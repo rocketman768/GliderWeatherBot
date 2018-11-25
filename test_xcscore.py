@@ -24,7 +24,7 @@ def test_feature():
         (dims, data) = raspdata.dataFromDirectory('test-data', classifier.requiredData(), 1400)
         feature = classifier.feature(startCoordinate, endCoordinate, dims, data)
         assert type(feature) == list
-        assert len(feature) > 0
+        assert len(feature) == len(classifier.weight)
         for item in feature:
             assert type(item) == float
 
