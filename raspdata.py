@@ -25,6 +25,7 @@ except ImportError:
 
 import itertools
 import math
+import os
 
 import pgzfile
 
@@ -84,7 +85,12 @@ def dataFromDirectory(dataDir, dataStrings, time):
     data = {}
     dims = ()
     for str in dataStrings:
-        (data[str], dims) = parseData(open('{0}/{1}.curr.{2}lst.d2.data'.format(dataDir, str, time)))
+        filename = '{0}/{1}.curr.{2}lst.d2.data'.format(dataDir, str, time)
+        if not os.path.isfile(filename):
+            filename = '{0}/{1}.curr.{2}lst.d2.data.pgz'.format(dataDir, str, time)
+        if not os.path.isfile(filename):
+            raise IOError('File not found for data {0} at time {1}'.format(str, time))
+        (data[str], dims) = parseData(open(filename))
     return dims, data
 
 def featureStats(features):
