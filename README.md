@@ -1,5 +1,7 @@
 # GliderWeatherBot
 
+![](https://travis-ci.com/rocketman768/GliderWeatherBot.svg?branch=develop)
+
 This is a Twitter bot that reads RASP data and tweets when it decides conditions are good for flying. The original bot is [KCVHGliderWeather](https://twitter.com/GliderKcvh).
 
 ## Copyright and License
