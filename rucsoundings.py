@@ -104,6 +104,54 @@ def kPaFromMb(pressure_mb):
 def degCFromK(temp_K):
     return temp_K - 273.15
 
+def gasConstantAir():
+    return 286.9
+
+def gasConstantWaterVapor():
+    return 461.4
+
+def waterVaporPressure(temp_K):
+    # T(C) | P(kPa)
+    #+++++++++++++++
+    #    0 | 0.61121
+    #   20 | 2.3388
+    #   35 | 5.6267
+    #   50 | 12.344
+    #   75 | 38.563
+    #  100 | 101.32
+
+    # Buck equation
+    k = 0.61121
+    a = 18.678
+    b = 234.5
+    c = 257.14
+    temp_C = degCFromK(temp_K)
+    return k * math.exp((a - temp_C / b) * (temp_C / (c + temp_C)))
+
+def waterVaporTemperature(waterPressure_kPa):
+    # Inverse of Buck equation
+    k = 0.61121
+    a = 18.678
+    b = 234.5
+    c = 257.14
+
+    A = -1.0
+    B = (a*b - b * math.log(waterPressure_kPa / k))
+    C = -b * c * math.log(waterPressure_kPa / k)
+    T0 = (-B + math.sqrt(B*B - 4 * A * C)) / (2.0 * A)
+    #T1 = (-B - math.sqrt(B*B - 4 * A * C)) / (2.0 * A)
+    return T0 + 273.15
+
+def mixingRatio(totalPressure, waterVaporPressure):
+    return waterVaporPressure / (totalPressure - waterVaporPressure) * gasConstantWaterVapor() / gasConstantAir()
+
+def saturationMixingRatio(totalPressure_kPa, temp_K):
+    pW = waterVaporPressure(temp_K)
+    return mixingRatio(totalPressure_kPa, pW)
+
+def temperatureForMixingRatio(w, totalPressure_kPa):
+    return 0.0
+
 # Return the standard temperature and height for the given pressure
 def standardAtmosphere(pressure_kPa):
     # http://www-mdp.eng.cam.ac.uk/web/library/enginfo/aerothermal_dvd_only/aero/atmos/atmos.html
@@ -135,9 +183,13 @@ def standardAtmosphere(pressure_kPa):
     return T, h
 
 if __name__=='__main__':
-    for P_mb in (1000, 850, 750, 700, 228, 200, 150):
-        T, h = standardAtmosphere(kPaFromMb(P_mb))
-        print('P: {0} T: {1} h: {2}'.format(P_mb, (T - 273.15), h*3.28))
+    print(waterVaporPressure(273.15))
+    print(waterVaporTemperature(0.61121))
+    print(waterVaporTemperature(2.3388))
+    #for P_mb in (1000, 850, 750, 700, 228, 200, 150):
+    #    T, h = standardAtmosphere(kPaFromMb(P_mb))
+    #    print('P: {0} T: {1} h: {2}'.format(P_mb, (T - 273.15), h*3.28))
+
     #import urllib2
     #response = urllib2.urlopen(urlForSounding('KCVH', 'GFS', datetime.datetime(2018,11,26,21,0,0)))
     #sounding, surfaceNdx = parseSounding(response)
