@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import datetime
+import math
 import re
 
 # Get the URL for the text sounding
@@ -97,9 +98,48 @@ def condenstationLevel(sounding, surfaceNdx, surfaceTemp_C):
     surfaceDewpoint_C = sounding[surfaceNdx]['dewpoint']
     return sounding[surfaceNdx]['altitude'] + (surfaceTemp_C - surfaceDewpoint_C) / (dryAdiabaticLapseRate_degCPerM - dewpointLapseRate_degCPerM)
 
+def kPaFromMb(pressure_mb):
+    return pressure_mb / 10.0
+
+def degCFromK(temp_K):
+    return temp_K - 273.15
+
+# Return the standard temperature and height for the given pressure
+def standardAtmosphere(pressure_kPa):
+    # http://www-mdp.eng.cam.ac.uk/web/library/enginfo/aerothermal_dvd_only/aero/atmos/atmos.html
+    g_ms = 9.8
+    R = 287.0
+    T0_K = 19.0 + 273.15
+    h0_m = -610.0
+    #L_Cm = 0.0065
+    L_Cm = (55.0 + 19.0) / (11000.0 + 610.0)
+    P0_kPa = 108.9
+
+    # Tropopause
+    Ts = -55.0 + 273.15
+    Ps = 22.632
+    hs = h0_m + (T0_K - Ts) / L_Cm # == 11.000km
+
+    # P / P0 = (T / T0)^(g/(LR))
+    # (P / P0)^(LR/g) = T/T0
+    # T = T0 * (P/P0)^(LR/g)
+    T = T0_K * math.pow(pressure_kPa / P0_kPa, L_Cm * R / g_ms)
+    if T >= Ts:
+        h = h0_m + (T0_K - T) / L_Cm
+    else:
+        # log(P/Ps) = g (hs - h) / (R Ts)
+        # (R Ts / g) log(P/Ps) = hs - h
+        T = Ts
+        h = hs - (R * Ts / g_ms) * math.log(pressure_kPa / Ps)
+
+    return T, h
+
 if __name__=='__main__':
-    import urllib2
-    response = urllib2.urlopen(urlForSounding('KCVH', 'GFS', datetime.datetime(2018,11,26,21,0,0)))
-    sounding, surfaceNdx = parseSounding(response)
-    print(sounding)
-    print(surfaceNdx)
+    for P_mb in (1000, 850, 750, 700, 228, 200, 150):
+        T, h = standardAtmosphere(kPaFromMb(P_mb))
+        print('P: {0} T: {1} h: {2}'.format(P_mb, (T - 273.15), h*3.28))
+    #import urllib2
+    #response = urllib2.urlopen(urlForSounding('KCVH', 'GFS', datetime.datetime(2018,11,26,21,0,0)))
+    #sounding, surfaceNdx = parseSounding(response)
+    #print(sounding)
+    #print(surfaceNdx)
