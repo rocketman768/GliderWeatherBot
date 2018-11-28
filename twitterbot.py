@@ -19,9 +19,11 @@
 
 import argparse
 import datetime
+import json
 import logging
 import os
 import random
+import re
 import string
 import threading
 import time
@@ -99,11 +101,10 @@ def tweet(message, retries, imgUrl=None, dryRun=False):
         os.remove(imagePath)
 
 # Create a human-readable string of days from a bunch of day offsets
-def daysString(dayOffsets):
+def daysString(dates):
     ret = ''
     first = True
-    for day in dayOffsets:
-        date = datetime.date.today() + datetime.timedelta(day)
+    for date in dates:
         ret += '' if first else ', '
         ret += date.strftime("%A %d %b")
         first = False
@@ -138,7 +139,7 @@ def goodWaveDays(classifier, baseURL, times, lookahead):
                 continue
             logging.info(' - {0}Wave {1}+{2}: {3:.3f}'.format('*' if isWaveDay else '', date.isoformat(), time, score))
         if isWaveDay:
-            waveDays.add(day)
+            waveDays.add(date)
 
     return waveDays, waveImageURL
 
@@ -165,7 +166,7 @@ def goodXCDays(classifier, baseURL, times, lookahead, startCoordinate, endCoordi
                 continue
             logging.info(' - {0}XC {1}+{2}: {3:.3f}'.format('*' if isXcDay else '', date.isoformat(), time, score))
         if isXcDay:
-            xcDays.add(day)
+            xcDays.add(date)
 
     return xcDays
 
@@ -197,6 +198,28 @@ if __name__=='__main__':
     with open('version.txt') as vFile:
         logging.info('Version {0}'.format(vFile.readline()))
 
+    # Load the state
+    state = {
+        'wave-days': set(),
+        'xc-days': set()
+    }
+    try:
+        file = open('.state.json', 'r')
+        state = json.load(file)
+        dates = set()
+        for dateStr in state['wave-days']:
+            (y,m,d) = re.search('(\d+)-(\d+)-(\d+)', dateStr).groups()
+            dates.add(datetime.date(int(y), int(m), int(d)))
+        state['wave-days'] = dates
+        dates = set()
+        for dateStr in state['xc-days']:
+            (y,m,d) = re.search('(\d+)-(\d+)-(\d+)', dateStr).groups()
+            dates.add(datetime.date(int(y), int(m), int(d)))
+        state['xc-days'] = dates
+        file.close()
+    except IOError, err:
+        logging.info('State file not opened: {0}'.format(err))
+
     # We spawn threads for tweeting, since we want to potentially do a long-waiting
     # retry loop in case something is temporarily-wrong with the network.
     tweetThreads = []
@@ -206,6 +229,9 @@ if __name__=='__main__':
 
     # Run wave day detection
     (waveDays, waveImageURL) = goodWaveDays(waveClassifier, args.wave_url, args.wave_times, args.wave_lookahead)
+    # Remove any days we have already notified on
+    waveDays -= state['wave-days']
+    state['wave-days'] |= waveDays
     if len(waveDays) > 0:
         tweetString = 'Wave Alert! These days may have wave: ' + daysString(waveDays) + '.'
         tweetString += '\n.\n' + args.wave_url
@@ -219,6 +245,9 @@ if __name__=='__main__':
 
     # Run XC day detection
     xcDays = goodXCDays(xcClassifier, args.xc_url, args.xc_times, args.xc_lookahead, tuple(args.xc_start_coordinate), tuple(args.xc_end_coordinate))
+    # Remove any days we have already notified on
+    xcDays -= state['xc-days']
+    state['xc-days'] |= xcDays
     if len(xcDays) > 0:
         tweetString = 'XC Alert! These days may be runnable: ' + daysString(xcDays) + '.'
         tweetString += '\n.\n' + args.xc_url
@@ -229,6 +258,12 @@ if __name__=='__main__':
         tweetThread.start()
     else:
         logging.info('I do not see XC in the forecast.')
+
+    # Write state back
+    with open('.state.json', 'w+') as file:
+        state['wave-days'] = [date.strftime("%Y-%m-%d") for date in state['wave-days']]
+        state['xc-days'] = [date.strftime("%Y-%m-%d") for date in state['xc-days']]
+        json.dump(state, file)
 
     # Wait for all threads to complete
     for thread in tweetThreads:
