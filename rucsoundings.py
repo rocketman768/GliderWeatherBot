@@ -87,17 +87,6 @@ def freezingLevel(sounding):
                 return temp
     return None
 
-# NOTE: in the future, maybe parse https://forecast.weather.gov/MapClick.php?lat=36.8525&lon=-121.4033&FcstType=digitalDWML
-# in order to get the maximum surface temperature during the day
-def condenstationLevel(sounding, surfaceNdx, surfaceTemp_C):
-    # These SHOULD be 9.8 deg/km and 2.0 deg/km respectively, but that
-    # does not line up with the 2.5 deg/1000ft combined lapse rate that
-    # us pilots are taught. That would be 8.2 deg/km.
-    dryAdiabaticLapseRate_degCPerM = 10.0 / 1000.0
-    dewpointLapseRate_degCPerM = 1.8 / 1000.0
-    surfaceDewpoint_C = sounding[surfaceNdx]['dewpoint']
-    return sounding[surfaceNdx]['altitude'] + (surfaceTemp_C - surfaceDewpoint_C) / (dryAdiabaticLapseRate_degCPerM - dewpointLapseRate_degCPerM)
-
 def kPaFromMb(pressure_mb):
     return pressure_mb / 10.0
 
@@ -111,6 +100,7 @@ def gasConstantWaterVapor():
     return 461.4
 
 def waterVaporPressure(temp_K):
+    # This table has the actually-measured values
     # T(C) | P(kPa)
     #+++++++++++++++
     #    0 | 0.61121
@@ -143,20 +133,27 @@ def waterVaporTemperature(waterPressure_kPa):
     return T0 + 273.15
 
 def mixingRatio(totalPressure, waterVaporPressure):
-    return waterVaporPressure / (totalPressure - waterVaporPressure) * gasConstantWaterVapor() / gasConstantAir()
+    # w = P_w / (P - P_w) * (R_a / R_w)
+    return waterVaporPressure / (totalPressure - waterVaporPressure) * gasConstantAir() / gasConstantWaterVapor()
 
 def saturationMixingRatio(totalPressure_kPa, temp_K):
     pW = waterVaporPressure(temp_K)
     return mixingRatio(totalPressure_kPa, pW)
 
+# This is the equation for the mixing ratio lines on a skew T
 def temperatureForMixingRatio(w, totalPressure_kPa):
-    return 0.0
+    # w = P_w / (P - P_w) * (R_a / R_w)
+    # <=>
+    # P_w = [w P (R_w / R_a)] / (1 + w (R_w / R_a))
+    a = w * gasConstantWaterVapor() / gasConstantAir()
+    waterPressure_kPa = totalPressure_kPa * (a / (1.0 + a))
+    return waterVaporTemperature(waterPressure_kPa)
 
 # Return the standard temperature and height for the given pressure
 def standardAtmosphere(pressure_kPa):
     # http://www-mdp.eng.cam.ac.uk/web/library/enginfo/aerothermal_dvd_only/aero/atmos/atmos.html
     g_ms = 9.8
-    R = 287.0
+    R = gasConstantAir()
     T0_K = 19.0 + 273.15
     h0_m = -610.0
     #L_Cm = 0.0065
@@ -182,13 +179,52 @@ def standardAtmosphere(pressure_kPa):
 
     return T, h
 
+def dryAdiabaticTemperature(pressure_kPa, surfacePressure_kPa, surfaceTemperature_K):
+    g_ms = 9.8
+    R = gasConstantAir()
+    T0_K = surfaceTemperature_K
+    L_Cm = 0.0098
+    P0_kPa = surfacePressure_kPa
+
+    # P / P0 = (T / T0)^(g/(LR))
+    # (P / P0)^(LR/g) = T/T0
+    # T = T0 * (P/P0)^(LR/g)
+    T = T0_K * math.pow(pressure_kPa / P0_kPa, L_Cm * R / g_ms)
+    return T
+
+# Find x0 = f(x) = 0 given x0 is in [a, b]
+def findRoot(f, a, b):
+    assert f(a) * f(b) <= 0.0
+    midpoint = 0.0
+    # We should get about one bit of accuracy per iteration
+    for i in range(32):
+        fa = f(a)
+        fb = f(b)
+        midpoint = (a*fb - b*fa) / (fb - fa)
+        if fa * f(midpoint) > 0.0:
+            a = midpoint
+        else:
+            b = midpoint
+    return midpoint
+
+# NOTE: in the future, maybe parse https://forecast.weather.gov/MapClick.php?lat=36.8525&lon=-121.4033&FcstType=digitalDWML
+# in order to get the maximum surface temperature during the day
+def condensationLevel(surfaceTemp_K, surfaceDewpoint_K, surfacePressure_kPa):
+    a_kPa = 10
+    b_kPa = 150
+    w = mixingRatio(surfacePressure_kPa, waterVaporPressure(surfaceDewpoint_K))
+    def temperatureDifference(pressure_kPa):
+        return dryAdiabaticTemperature(pressure_kPa, surfacePressure_kPa, surfaceTemp_K) - temperatureForMixingRatio(w, pressure_kPa)
+    condensationLevel_kPa = findRoot(temperatureDifference, a_kPa, b_kPa)
+    condensationTemp_K = temperatureForMixingRatio(w, condensationLevel_kPa)
+    return condensationLevel_kPa, condensationTemp_K
+
 if __name__=='__main__':
-    print(waterVaporPressure(273.15))
-    print(waterVaporTemperature(0.61121))
-    print(waterVaporTemperature(2.3388))
-    #for P_mb in (1000, 850, 750, 700, 228, 200, 150):
-    #    T, h = standardAtmosphere(kPaFromMb(P_mb))
-    #    print('P: {0} T: {1} h: {2}'.format(P_mb, (T - 273.15), h*3.28))
+    # Find the condensation level if the dewpoint is -3.2C and the surface
+    # temp at 1000mb is 30C
+    cl_kPa, T = condensationLevel(30.0 + 273.15, -3.2 + 273.15, 100.0)
+    _, hcl_m = standardAtmosphere(cl_kPa)
+    print('{0} mb {1} ft {2} C'.format(cl_kPa * 10.0, hcl_m * 3.28, T - 273.15))
 
     #import urllib2
     #response = urllib2.urlopen(urlForSounding('KCVH', 'GFS', datetime.datetime(2018,11,26,21,0,0)))
