@@ -26,6 +26,7 @@ import os
 from builtins import range, zip
 from io import open
 
+import datasource
 import raspdata
 
 # Just eyeballing these locations and measuring pixels.
@@ -106,16 +107,9 @@ def bestPath(a, b, width, height, hcrit, vvert):
     return [x for x in reversed(reversedPath)]
 
 class AbstractXCClassifier:
-    def requiredData(self):
+    def feature(self, startCoordinate, endCoordinate, raspDataTimeSlice):
         raise NotImplementedError()
-
-    def feature(self, startCoordinate, endCoordinate, dims, dataDict):
-        raise NotImplementedError()
-
-    def score(self, startCoordinate, endCoordinate, dims, dataDict):
-        raise NotImplementedError()
-
-    def classify(self, startCoordinate, endCoordinate, dims, dataDict):
+    def classify(self, startCoordinate, endCoordinate, raspDataTimeSlice):
         raise NotImplementedError()
 
 class KCVHXCClassifier(AbstractXCClassifier):
@@ -131,29 +125,31 @@ class KCVHXCClassifier(AbstractXCClassifier):
         if 'WEATHERBOT_XC_THRESHOLD' in os.environ:
             self.threshold = float(os.environ['WEATHERBOT_XC_THRESHOLD'])
 
-    def requiredData(self):
-        return ('hwcrit', 'wblmaxmin')
+    def feature(self, startCoordinate, endCoordinate, raspDataTimeSlice):
+        with raspDataTimeSlice.open('hwcrit') as f:
+            hwcrit, dims = raspdata.parseData(f)
+        with raspDataTimeSlice.open('wblmaxmin') as f:
+            wblmaxmin, _ = raspdata.parseData(f)
 
-    def feature(self, startCoordinate, endCoordinate, dims, dataDict):
         height = dims[1]
         width = dims[0]
-        # TODO: make start/end parameters
-        path = bestPath(startCoordinate, endCoordinate, width, height, dataDict['hwcrit'], dataDict['wblmaxmin'])
 
-        maxH = max([raspdata.at(u, dataDict['hwcrit']) for u in path])
-        avgH = sum([raspdata.at(u, dataDict['hwcrit']) for u in path]) / len(path)
-        minH = min([raspdata.at(u, dataDict['hwcrit']) for u in path])
+        path = bestPath(startCoordinate, endCoordinate, width, height, hwcrit, wblmaxmin)
+
+        maxH = max([raspdata.at(u, hwcrit) for u in path])
+        avgH = sum([raspdata.at(u, hwcrit) for u in path]) / len(path)
+        minH = min([raspdata.at(u, hwcrit) for u in path])
         #maxV = max([raspdata.at(u, dataDict['wblmaxmin']) for u in path])
         #avgV = sum([raspdata.at(u, dataDict['wblmaxmin']) for u in path]) / len(path)
 
         # NOTE: normalizing the data is absolutely necessary.
         return [(maxH - 6579.0) / 2280.0, (avgH - 5689.0) / 2206.0, (minH - 4711.0) / 2154.0]
 
-    def score(self, startCoordinate, endCoordinate, dims, dataDict):
-        return raspdata.score(self.feature(startCoordinate, endCoordinate, dims, dataDict), self.weight, self.bias)
-
-    def classify(self, startCoordinate, endCoordinate, dims, dataDict):
-        return True if self.score(startCoordinate, endCoordinate, dims, dataDict) > self.threshold else False
+    def classify(self, startCoordinate, endCoordinate, raspDataTimeSlice):
+        f = self.feature(startCoordinate, endCoordinate, raspDataTimeSlice)
+        s = raspdata.score(f, self.weight, self.bias)
+        classification = True if s > self.threshold else False
+        return classification, s
 
 class XCClassifierFactory:
     @staticmethod
@@ -172,15 +168,17 @@ def featuresAndLabelsFromDataset(pos, neg, classifier, startCoordinate, endCoord
     features = []
     labels = []
     for item in pos:
+        dataSource = datasource.ArchivedRASPDataSource(item[0])
         for time in item[1]:
-            (dims, dataDict) = raspdata.dataFromDirectory(item[0], classifier.requiredData(), time)
-            features.append(classifier.feature(startCoordinate, endCoordinate, dims, dataDict))
+            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
+            features.append(classifier.feature(startCoordinate, endCoordinate, dataTimeSlice))
             labels.append(1.0)
 
     for item in neg:
+        dataSource = datasource.ArchivedRASPDataSource(item[0])
         for time in item[1]:
-            (dims, dataDict) = raspdata.dataFromDirectory(item[0], classifier.requiredData(), time)
-            features.append(classifier.feature(startCoordinate, endCoordinate, dims, dataDict))
+            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
+            features.append(classifier.feature(startCoordinate, endCoordinate, dataTimeSlice))
             labels.append(0.0)
 
     return features, labels
@@ -192,10 +190,11 @@ def evaluateDataset(pos, neg, classifier, startCoordinate, endCoordinate):
     trueNeg = 0
     print('## Positives ##')
     for item in pos:
+        dataSource = datasource.ArchivedRASPDataSource(item[0])
         for time in item[1]:
-            (dims, dataDict) = raspdata.dataFromDirectory(item[0], classifier.requiredData(), time)
-            feature = classifier.feature(startCoordinate, endCoordinate, dims, dataDict)
-            score = classifier.score(startCoordinate, endCoordinate, dims, dataDict)
+            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
+            feature = classifier.feature(startCoordinate, endCoordinate, dataTimeSlice)
+            _, score = classifier.classify(startCoordinate, endCoordinate, dataTimeSlice)
             if score >= classifier.threshold:
                 truePos += 1
             print(' - {0}: {1:.3f}'.format(item[0], score))
@@ -203,10 +202,11 @@ def evaluateDataset(pos, neg, classifier, startCoordinate, endCoordinate):
             print('   Score contribution: {0}'.format(['{0:.3f}'.format(x*w) for (x,w) in zip(feature, classifier.weight)]))
     print('## Negatives ##')
     for item in neg:
+        dataSource = datasource.ArchivedRASPDataSource(item[0])
         for time in item[1]:
-            (dims, dataDict) = raspdata.dataFromDirectory(item[0], classifier.requiredData(), time)
-            feature = classifier.feature(startCoordinate, endCoordinate, dims, dataDict)
-            score = classifier.score(startCoordinate, endCoordinate, dims, dataDict)
+            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
+            feature = classifier.feature(startCoordinate, endCoordinate, dataTimeSlice)
+            _, score = classifier.classify(startCoordinate, endCoordinate, dataTimeSlice)
             if score < classifier.threshold:
                 trueNeg += 1
             print(' - {0}: {1:.3f}'.format(item[0], score))

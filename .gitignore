@@ -1,3 +1,4 @@
 *.pyc
 data/
 .state.json
+.DS_Store

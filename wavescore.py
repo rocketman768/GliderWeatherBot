@@ -23,19 +23,14 @@ import os
 from builtins import zip
 from io import open
 
+import datasource
 import raspdata
 
 class AbstractWaveClassifier:
-    def requiredData(self):
+    def feature(self, raspDataTimeSlice):
         raise NotImplementedError()
 
-    def feature(self, dims, dataDict):
-        raise NotImplementedError()
-
-    def score(self, dims, dataDict):
-        raise NotImplementedError()
-
-    def classify(self, dims, dataDict):
+    def classify(self, raspDataTimeSlice):
         raise NotImplementedError()
 
 class KCVHWaveClassifier:
@@ -52,14 +47,15 @@ class KCVHWaveClassifier:
         if 'WEATHERBOT_WAVE_THRESHOLD' in os.environ:
             self.threshold = float(os.environ['WEATHERBOT_WAVE_THRESHOLD'])
 
-    def requiredData(self):
-        return ('press500', 'press700', 'press850', 'blcloudpct')
-
-    def feature(self, dims, dataDict):
-        data500mb = dataDict['press500']
-        data700mb = dataDict['press700']
-        data850mb = dataDict['press850']
-        dataCloudCover = dataDict['blcloudpct']
+    def feature(self, raspDataTimeSlice):
+        with raspDataTimeSlice.open('press500') as file:
+            (data500mb, dims) = raspdata.parseData(file)
+        with raspDataTimeSlice.open('press700') as file:
+            (data700mb, _) = raspdata.parseData(file)
+        with raspDataTimeSlice.open('press850') as file:
+            (data850mb, _) = raspdata.parseData(file)
+        with raspDataTimeSlice.open('blcloudpct') as file:
+            (dataCloudCover, _) = raspdata.parseData(file)
         # NOTE: I would rather just add a separate feature for cloud cover,
         # but right now I do not have enough data to do that. The SVM ends up
         # learning the wrong weights at the moment. So, incorporate cloud cover
@@ -98,12 +94,11 @@ class KCVHWaveClassifier:
 
         return [(x - m) / s for (x,m,s) in zip(fRaw, fMean, fStd)]
 
-    def score(self, dims, dataDict):
-        feature = self.feature(dims, dataDict)
-        return raspdata.score(feature, self.weight, self.bias)
-
-    def classify(self, dims, dataDict):
-        return True if self.score(dims, dataDict) >= self.threshold else False
+    def classify(self, raspDataTimeSlice):
+        feature = self.feature(raspDataTimeSlice)
+        score = raspdata.score(feature, self.weight, self.bias)
+        classification = True if score >= self.threshold else False
+        return classification, score
 
 class WaveClassifierFactory:
     @staticmethod
@@ -121,15 +116,17 @@ def featuresAndLabelsFromDataset(pos, neg, classifier):
     features = []
     labels = []
     for item in pos:
+        dataSource = datasource.ArchivedRASPDataSource(item[0])
         for time in item[1]:
-            (dims, dataDict) = raspdata.dataFromDirectory(item[0], classifier.requiredData(), time)
-            features.append(classifier.feature(dims, dataDict))
+            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
+            features.append(classifier.feature(dataTimeSlice))
             labels.append(1.0)
 
     for item in neg:
+        dataSource = datasource.ArchivedRASPDataSource(item[0])
         for time in item[1]:
-            (dims, dataDict) = raspdata.dataFromDirectory(item[0], classifier.requiredData(), time)
-            features.append(classifier.feature(dims, dataDict))
+            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
+            features.append(classifier.feature(dataTimeSlice))
             labels.append(0.0)
 
     return features, labels
@@ -141,10 +138,11 @@ def evaluateDataset(pos, neg, classifier):
     trueNeg = 0
     print('## Positives ##')
     for item in pos:
+        dataSource = datasource.ArchivedRASPDataSource(item[0])
         for time in item[1]:
-            (dims, dataDict) = raspdata.dataFromDirectory(item[0], classifier.requiredData(), time)
-            feature = classifier.feature(dims, dataDict)
-            score = classifier.score(dims, dataDict)
+            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
+            feature = classifier.feature(dataTimeSlice)
+            _, score = classifier.classify(dataTimeSlice)
             if score >= classifier.threshold:
                 truePos += 1
             print(' - {0}-{1}: {2:.3f}'.format(item[0], time, score))
@@ -152,10 +150,11 @@ def evaluateDataset(pos, neg, classifier):
             print('   Score contribution: {0}'.format(['{0:.3f}'.format(x*w) for (x,w) in zip(feature, classifier.weight)]))
     print ('## Negatives ##')
     for item in neg:
+        dataSource = datasource.ArchivedRASPDataSource(item[0])
         for time in item[1]:
-            (dims, dataDict) = raspdata.dataFromDirectory(item[0], classifier.requiredData(), time)
-            feature = classifier.feature(dims, dataDict)
-            score = classifier.score(dims, dataDict)
+            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
+            feature = classifier.feature(dataTimeSlice)
+            _, score = classifier.classify(dataTimeSlice)
             if score < classifier.threshold:
                 trueNeg += 1
             print(' - {0}-{1}: {2:.3f}'.format(item[0], time, score))

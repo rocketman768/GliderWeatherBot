@@ -40,6 +40,7 @@ except ImportError:
     from urllib import urlencode
     from urllib2 import urlopen, Request, HTTPError
 
+import datasource
 import raspdata
 import wavescore
 import xcscore
@@ -125,20 +126,15 @@ def goodWaveDays(classifier, baseURL, times, lookahead):
     waveDays = set()
     maxWaveScore = -1000.0
     waveImageURL = None
+    dataSource = datasource.WebRASPDataSource(baseURL)
     for day in range(lookahead):
         date = datetime.date.today() + datetime.timedelta(day)
         isWaveDay = False
         isHardToClassify = False
         for time in times:
-            data = {}
-            dims = ()
+            dataTimeSlice = datasource.WebRASPDataTimeSlice(dataSource, day, time)
             try:
-                for dataStr in classifier.requiredData():
-                    url = '{0}/OUT+{1}/FCST/{2}.curr.{3}lst.d2.data'.format(baseURL, day, dataStr, time)
-                    response = urlopen(url)
-                    (data[dataStr], dims) = raspdata.parseData(response)
-                score = classifier.score(dims, data)
-                isWaveDay = classifier.classify(dims, data)
+                isWaveDay, score = classifier.classify(dataTimeSlice)
                 isHardToClassify |= (score >= -1.0) and (score <= 1.0)
                 # Pick the time with the best score to use as the image
                 if score > maxWaveScore:
