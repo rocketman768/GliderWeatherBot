@@ -56,3 +56,20 @@ def readPgzImage(fileStream):
     def ret(x,y):
         return data[y][x]
     return ret, dims
+
+if __name__=='__main__':
+    import argparse
+    import os
+
+    import raspdata
+
+    parser = argparse.ArgumentParser(description='Compress RASP .data files into .pgz files')
+    parser.add_argument('files', type=str, nargs='+', help='Files to compress')
+    args = parser.parse_args()
+
+    for filename in args.files:
+        with open(filename, 'rb') as f:
+            data, dims = raspdata.parseData(f)
+            with open(filename + '.pgz', 'wb+') as of:
+                writePgzImage(data, dims, of)
+        os.remove(filename)
