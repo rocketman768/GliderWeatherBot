@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 
+from builtins import range
+from io import open
+
 import pgzfile
 
 def test_pgzfile():
     dims = (110, 130)
     def data(x,y):
         return int(x)*int(y)
-    with open('/tmp/image.pgz', 'w') as file:
+    with open('/tmp/image.pgz', 'wb') as file:
         pgzfile.writePgzImage(data, dims, file)
-    with open('/tmp/image.pgz', 'r') as file:
+    with open('/tmp/image.pgz', 'rb') as file:
         (testData, testDims) = pgzfile.readPgzImage(file)
         assert dims == testDims
         for y in range(dims[1]):

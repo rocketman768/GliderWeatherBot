@@ -28,7 +28,17 @@ import string
 import threading
 import time
 import tweepy
-import urllib2
+from builtins import range, str
+from io import open
+
+try:
+    from urllib.parse import urlparse, urlencode
+    from urllib.request import urlopen, Request
+    from urllib.error import HTTPError
+except ImportError:
+    from urlparse import urlparse
+    from urllib import urlencode
+    from urllib2 import urlopen, Request, HTTPError
 
 import raspdata
 import wavescore
@@ -42,14 +52,14 @@ def randomString(length):
 # Download the file with the specified url to the given path
 def download(url, path):
     try:
-        response = urllib2.urlopen(url)
+        response = urlopen(url)
         data = response.read()
     except (KeyboardInterrupt, SystemExit):
         raise
     except:
         print('ERROR: resource not found on server')
         return
-    with open(path, 'w') as output:
+    with open(path, 'wb') as output:
         output.write(data)
 
 # This function blocks for 30 minutes for each retry.
@@ -125,7 +135,7 @@ def goodWaveDays(classifier, baseURL, times, lookahead):
             try:
                 for dataStr in classifier.requiredData():
                     url = '{0}/OUT+{1}/FCST/{2}.curr.{3}lst.d2.data'.format(baseURL, day, dataStr, time)
-                    response = urllib2.urlopen(url)
+                    response = urlopen(url)
                     (data[dataStr], dims) = raspdata.parseData(response)
                 score = classifier.score(dims, data)
                 isWaveDay = classifier.classify(dims, data)
@@ -156,7 +166,7 @@ def goodXCDays(classifier, baseURL, times, lookahead, startCoordinate, endCoordi
             try:
                 for dataStr in classifier.requiredData():
                     url = '{0}/OUT+{1}/FCST/{2}.curr.{3}lst.d2.data'.format(baseURL, day, dataStr, time)
-                    response = urllib2.urlopen(url)
+                    response = urlopen(url)
                     (data[dataStr], dims) = raspdata.parseData(response)
                 score = classifier.score(startCoordinate, endCoordinate, dims, data)
                 isXcDay = classifier.classify(startCoordinate, endCoordinate, dims, data)
@@ -217,7 +227,7 @@ if __name__=='__main__':
             dates.add(datetime.date(int(y), int(m), int(d)))
         state['xc-days'] = dates
         file.close()
-    except IOError, err:
+    except (IOError, ValueError) as err:
         logging.info('State file not opened: {0}'.format(err))
 
     # We spawn threads for tweeting, since we want to potentially do a long-waiting
@@ -260,10 +270,12 @@ if __name__=='__main__':
         logging.info('I do not see XC in the forecast.')
 
     # Write state back
-    with open('.state.json', 'w+') as file:
-        state['wave-days'] = [date.strftime("%Y-%m-%d") for date in state['wave-days']]
-        state['xc-days'] = [date.strftime("%Y-%m-%d") for date in state['xc-days']]
-        json.dump(state, file)
+    with open('.state.json', 'w+', encoding='utf-8') as file:
+        state['wave-days'] = [date.strftime(u'%Y-%m-%d') for date in state['wave-days']]
+        state['xc-days'] = [date.strftime(u'%Y-%m-%d') for date in state['xc-days']]
+        #json.dump(state, file)
+        # The JSON module is so damn dumb
+        file.write(str(json.dumps(state)))
 
     # Wait for all threads to complete
     for thread in tweetThreads:

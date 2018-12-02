@@ -19,8 +19,18 @@
 
 import argparse
 import json
-import urllib2
 import threading
+from builtins import range
+from io import open
+
+try:
+    from urllib.parse import urlparse, urlencode
+    from urllib.request import urlopen, Request
+    from urllib.error import HTTPError
+except ImportError:
+    from urlparse import urlparse
+    from urllib import urlencode
+    from urllib2 import urlopen, Request, HTTPError
 
 import pgzfile
 import raspdata
@@ -39,7 +49,7 @@ def downloadRaspFiles(filesToDownload, baseURL, forecastOffset, outputDir):
         print('Downloading ' + raspFile + '...')
         url = baseURL + '/OUT+' + str(forecastOffset) + '/FCST/' + raspFile
         try:
-            response = urllib2.urlopen(url)
+            response = urlopen(url)
         except (KeyboardInterrupt, SystemExit):
             raise
         except:
@@ -47,7 +57,7 @@ def downloadRaspFiles(filesToDownload, baseURL, forecastOffset, outputDir):
             continue
         isPgz = args.binary and '.data' in raspFile
         filename = '{0}/{1}{2}'.format(outputDir, raspFile, '.pgz' if isPgz else '')
-        with open(filename, 'w') as output:
+        with open(filename, 'wb') as output:
             if isPgz:
                 (data, dims) = raspdata.parseData(response)
                 pgzfile.writePgzImage(data, dims, output)
