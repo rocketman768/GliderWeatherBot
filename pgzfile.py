@@ -20,22 +20,24 @@
 import re
 import struct
 import zlib
+from builtins import range, str
 
 # NOTE: this is not technically PGM, since we are using 4 bytes per pixel
-def writePgzImage(data, dims, file):
+def writePgzImage(data, dims, fileStream):
+    assert 'b' in fileStream.mode
     maxVal = 2**32 - 1
-    file.write('PGZ {0} {1} {2}\n'.format(dims[0], dims[1], maxVal))
-    packedData = ''
+    fileStream.write(str('PGZ {0} {1} {2}\n'.format(dims[0], dims[1], maxVal)).encode('utf-8'))
+    packedData = bytes()
     for y in range(dims[1]):
         for x in range(dims[0]):
             # Big-endian 32-bit signed integers
             packed = struct.pack('>i', data(x, y))
             packedData += packed
-    file.write(zlib.compress(packedData, 9))
+    fileStream.write(zlib.compress(packedData, 9))
 
-def readPgzImage(file):
-    formatLine = file.readline()
-    rest = zlib.decompress(file.read())
+def readPgzImage(fileStream):
+    formatLine = str(fileStream.readline())
+    rest = zlib.decompress(fileStream.read())
 
     m = re.search('PGZ (\d+) (\d+) (\d+)', formatLine)
     dims = (int(m.group(1)), int(m.group(2)))
@@ -48,8 +50,8 @@ def readPgzImage(file):
         rowStr = rest[rowBegin:rowEnd]
         dataRow = []
         for x in range(dims[0]):
-            str = rowStr[(4*x):(4*(x+1))]
-            dataRow.append(struct.unpack('>i', str)[0])
+            s = rowStr[(4*x):(4*(x+1))]
+            dataRow.append(struct.unpack('>i', s)[0])
         data.append(dataRow)
     def ret(x,y):
         return data[y][x]

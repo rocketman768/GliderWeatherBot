@@ -23,6 +23,8 @@ import json
 import math
 #import matplotlib.pyplot as plt
 import os
+from builtins import range, zip
+from io import open
 
 import raspdata
 
@@ -44,7 +46,7 @@ def score(u, v, hcrit, vvert, debug):
     equiv_fpm = vval_fpm + ((hval_ft - 6000.0) / 2000.0 * 200.0)
     distRatio = math.exp(-equiv_fpm / 500.0)
     if debug:
-        print '{0}, {1}, {2}, {3}'.format(hval_ft, vval_fpm, equiv_fpm, distRatio)
+        print('{0}, {1}, {2}, {3}'.format(hval_ft, vval_fpm, equiv_fpm, distRatio))
     return distRatio * dist
 
 def neighbors(u, width, height):
@@ -199,7 +201,7 @@ def evaluateDataset(pos, neg, classifier, startCoordinate, endCoordinate):
             print(' - {0}: {1:.3f}'.format(item[0], score))
             print('   Feature: {0}'.format(feature))
             print('   Score contribution: {0}'.format(['{0:.3f}'.format(x*w) for (x,w) in zip(feature, classifier.weight)]))
-    print ('## Negatives ##')
+    print('## Negatives ##')
     for item in neg:
         for time in item[1]:
             (dims, dataDict) = raspdata.dataFromDirectory(item[0], classifier.requiredData(), time)

@@ -20,6 +20,8 @@
 import argparse
 import json
 import os
+from builtins import zip
+from io import open
 
 import raspdata
 

@@ -26,13 +26,15 @@ except ImportError:
 import itertools
 import math
 import os
+from builtins import range, str, zip
+from io import open
 
 import pgzfile
 
 def rectDomain(dims):
     def listProduct(listOfIterables):
         return itertools.product(*listOfIterables)
-    return listProduct(xrange(x) for x in dims)
+    return listProduct(range(x) for x in dims)
 
 def isValueValid(val):
     return val > -999999 and val < 999999
@@ -57,7 +59,7 @@ def parseData(fileStream):
     data = [];
 
     # First line is garbage (unless this is a PGZ image)
-    firstLine = fileStream.readline()
+    firstLine = str(fileStream.readline())
     if 'PGZ' in firstLine:
         fileStream.seek(0)
         return pgzfile.readPgzImage(fileStream)
@@ -66,11 +68,11 @@ def parseData(fileStream):
     params1 = fileStream.readline()
     params2 = fileStream.readline()
 
-    line = fileStream.readline()
+    line = fileStream.readline().decode('ascii')
     while line:
         row = [int(x) for x in line.split(' ')]
         data.append(row)
-        line = fileStream.readline()
+        line = fileStream.readline().decode('ascii')
 
     height = len(data)
     width = len(data[0])
@@ -90,7 +92,7 @@ def dataFromDirectory(dataDir, dataStrings, time):
             filename = '{0}/{1}.curr.{2}lst.d2.data.pgz'.format(dataDir, str, time)
         if not os.path.isfile(filename):
             raise IOError('File not found for data {0} at time {1}'.format(str, time))
-        (data[str], dims) = parseData(open(filename))
+        (data[str], dims) = parseData(open(filename, 'rb'))
     return dims, data
 
 def featureStats(features):

@@ -27,6 +27,7 @@ After your dataset is collected, construct a dataset `.json` file like `xc-datas
 Please download the following packages (by `apt-get` or whatever).
 
  - python
+ - python-future
  - python-tweepy
  - python-sklearn
 

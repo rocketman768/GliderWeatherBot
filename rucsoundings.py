@@ -3,6 +3,16 @@
 import datetime
 import math
 import re
+from builtins import range
+
+try:
+    from urllib.parse import urlparse, urlencode
+    from urllib.request import urlopen, Request
+    from urllib.error import HTTPError
+except ImportError:
+    from urlparse import urlparse
+    from urllib import urlencode
+    from urllib2 import urlopen, Request, HTTPError
 
 # Get the URL for the text sounding
 # location can be an airport like 'KCVH' or '<lat>,<long>' in decimal format
@@ -61,7 +71,7 @@ def interpolateSounding(sounding, altitude):
             if i > 0:
                 lastAlt = sounding[i-1]['altitude']
                 pct = (altitude - lastAlt) / (alt - lastAlt)
-                for key in sounding[i].keys():
+                for key in sounding[i]:
                     value = sounding[i][key]
                     lastValue = sounding[i-1][key]
                     if key == 'wind-direction':
@@ -138,8 +148,7 @@ if __name__=='__main__':
     for P_mb in (1000, 850, 750, 700, 228, 200, 150):
         T, h = standardAtmosphere(kPaFromMb(P_mb))
         print('P: {0} T: {1} h: {2}'.format(P_mb, (T - 273.15), h*3.28))
-    #import urllib2
-    #response = urllib2.urlopen(urlForSounding('KCVH', 'GFS', datetime.datetime(2018,11,26,21,0,0)))
+    #response = urlopen(urlForSounding('KCVH', 'GFS', datetime.datetime(2018,11,26,21,0,0)))
     #sounding, surfaceNdx = parseSounding(response)
     #print(sounding)
     #print(surfaceNdx)
