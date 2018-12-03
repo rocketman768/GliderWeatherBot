@@ -152,20 +152,15 @@ def goodWaveDays(classifier, baseURL, times, lookahead):
 # Detect XC days
 def goodXCDays(classifier, baseURL, times, lookahead, startCoordinate, endCoordinate):
     xcDays = set()
+    dataSource = datasource.WebRASPDataSource(baseURL)
     for day in range(lookahead):
         date = datetime.date.today() + datetime.timedelta(day)
         isXcDay = False
         isHardToClassify = False
         for time in times:
-            data = {}
-            dims = ()
+            dataTimeSlice = datasource.WebRASPDataTimeSlice(dataSource, day, time)
             try:
-                for dataStr in classifier.requiredData():
-                    url = '{0}/OUT+{1}/FCST/{2}.curr.{3}lst.d2.data'.format(baseURL, day, dataStr, time)
-                    response = urlopen(url)
-                    (data[dataStr], dims) = raspdata.parseData(response)
-                score = classifier.score(startCoordinate, endCoordinate, dims, data)
-                isXcDay = classifier.classify(startCoordinate, endCoordinate, dims, data)
+                isXcDay, score = classifier.classify(startCoordinate, endCoordinate, dataTimeSlice)
                 isHardToClassify |= (score >= -1.0) and (score <= 1.0)
             except:
                 logging.exception('Unable to download one of the files for day {0} time {1}'.format(day, time))
