@@ -36,7 +36,7 @@ class AbstractWaveClassifier:
 class KCVHWaveClassifier:
     def __init__(self):
         self.weight = [-0.1, -0.1, -0.1, 0.1, 0.1, 0.1, 0.2, 0.4, 0.4]
-        self.bias = -1.579
+        self.bias = -2.225
         self.threshold = 0.0
 
         # Allow override from environment variables
@@ -54,14 +54,20 @@ class KCVHWaveClassifier:
             (data700mb, _) = raspdata.parseData(file)
         with raspDataTimeSlice.open('press850') as file:
             (data850mb, _) = raspdata.parseData(file)
-        with raspDataTimeSlice.open('blcloudpct') as file:
-            (dataCloudCover, _) = raspdata.parseData(file)
+        with raspDataTimeSlice.open('sfcsunpct') as file:
+            (dataSfcSun, _) = raspdata.parseData(file)
         # NOTE: I would rather just add a separate feature for cloud cover,
         # but right now I do not have enough data to do that. The SVM ends up
         # learning the wrong weights at the moment. So, incorporate cloud cover
-        # as a modulation of the lift.
+        # as a modulation of the lift. Also, it is important to note that the
+        # feature derived from this should be inhibitory only, because
+        # being sunny does not 'help' a wave day. So, the feature should be at
+        # most 0.0 on a sunny day.
+        cloudCoverArea = raspdata.area(dataSfcSun, dims, lambda x: x <= 80)
         def cloudCoverFactor(x,y):
-            return 1.0 - pow(dataCloudCover(x,y) / 100.0, 8.0)
+            return 1.0 - pow(cloudCoverArea, 2.0)
+            #totalCloudCover = 1.0 - min(1.0, max(0.0, dataSfcSun(x, y) / 100.0))
+            #return 1.0 - pow(totalCloudCover, 4.0)
         def usableLift500(x,y):
             return data500mb(x,y) * cloudCoverFactor(x,y)
         def usableLift700(x,y):
@@ -75,12 +81,11 @@ class KCVHWaveClassifier:
         liftArea500 = raspdata.area(usableLift500, dims, lambda x: x >= 150)
         liftArea700 = raspdata.area(usableLift700, dims, lambda x: x >= 150)
         liftArea850 = raspdata.area(usableLift850, dims, lambda x: x >= 150)
-        cloudCoverArea = raspdata.area(dataCloudCover, dims, lambda x: x >= 90)
 
         # NOTE: for numerical stability, it is important that the features be
         # roughly centered and of the same magnitude
-        fMean = [-375.6296296296296, -513.5555555555555, -616.0370370370371, 398.0, 601.1111111111111, 676.5925925925926, 0.025068635068635065, 0.024910644910644906, 0.035129391681659704]
-        fStd = [209.48245717201664, 280.6614321672517, 362.9489793224674, 293.31376197335675, 342.8986820809311, 295.1233589232939, 0.03235570269886821, 0.028779773140666973, 0.030252204765808442]
+        fMean = [-434.1764705882353, -575.4411764705883, -700.2352941176471, 530.2941176470588, 784.5294117647059, 752.1470588235294, 0.015691073632250106, 0.016809954751131218, 0.025752377331863807]
+        fStd = [223.55424010717442, 295.8258819341968, 373.0983200195145, 401.14846374552894, 514.5700224055785, 313.24310539832277, 0.021996706669242815, 0.01863042596407224, 0.026509648829214846]
         fRaw = [min500,
                 min700,
                 min850,
