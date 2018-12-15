@@ -134,7 +134,8 @@ def goodWaveDays(classifier, baseURL, times, lookahead):
         for time in times:
             dataTimeSlice = datasource.WebRASPDataTimeSlice(dataSource, day, time)
             try:
-                isWaveDay, score = classifier.classify(dataTimeSlice)
+                isWave, score = classifier.classify(dataTimeSlice)
+                isWaveDay |= isWave
                 isHardToClassify |= (score >= -1.0) and (score <= 1.0)
                 # Pick the time with the best score to use as the image
                 if score > maxWaveScore:
@@ -143,7 +144,7 @@ def goodWaveDays(classifier, baseURL, times, lookahead):
             except:
                 logging.exception('Unable to download one of the files for day {0} time {1}'.format(day, time))
                 continue
-            logging.info(' - {0}Wave {1}+{2}: {3:.3f}'.format('*' if isWaveDay else '', date.isoformat(), time, score))
+            logging.info(' - {0}Wave {1}+{2}: {3:.3f}'.format('*' if isWave else '', date.isoformat(), time, score))
         if isWaveDay:
             waveDays.add(date)
 
@@ -160,12 +161,13 @@ def goodXCDays(classifier, baseURL, times, lookahead, startCoordinate, endCoordi
         for time in times:
             dataTimeSlice = datasource.WebRASPDataTimeSlice(dataSource, day, time)
             try:
-                isXcDay, score = classifier.classify(startCoordinate, endCoordinate, dataTimeSlice)
+                isXc, score = classifier.classify(startCoordinate, endCoordinate, dataTimeSlice)
+                isXcDay |= isXc
                 isHardToClassify |= (score >= -1.0) and (score <= 1.0)
             except:
                 logging.exception('Unable to download one of the files for day {0} time {1}'.format(day, time))
                 continue
-            logging.info(' - {0}XC {1}+{2}: {3:.3f}'.format('*' if isXcDay else '', date.isoformat(), time, score))
+            logging.info(' - {0}XC {1}+{2}: {3:.3f}'.format('*' if isXc else '', date.isoformat(), time, score))
         if isXcDay:
             xcDays.add(date)
 
