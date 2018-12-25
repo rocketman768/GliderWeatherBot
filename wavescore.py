@@ -35,8 +35,8 @@ class AbstractWaveClassifier:
 
 class KCVHWaveClassifier:
     def __init__(self):
-        self.weight = [-0.1, -0.1, -0.1, 0.1, 0.1, 0.1, 0.2, 0.4, 0.4]
-        self.bias = -2.225
+        self.weight = [0.97959826 1.05104664 1.19487818]
+        self.bias = -2.49384207861
         self.threshold = 0.0
 
         # Allow override from environment variables
@@ -75,24 +75,15 @@ class KCVHWaveClassifier:
         def usableLift850(x,y):
             return data850mb(x,y) * cloudCoverFactor(x,y)
 
-        min500, max500 = raspdata.minMax(data500mb, dims)
-        min700, max700 = raspdata.minMax(data700mb, dims)
-        min850, max850 = raspdata.minMax(data850mb, dims)
         liftArea500 = raspdata.area(usableLift500, dims, lambda x: x >= 150)
         liftArea700 = raspdata.area(usableLift700, dims, lambda x: x >= 150)
         liftArea850 = raspdata.area(usableLift850, dims, lambda x: x >= 150)
 
         # NOTE: for numerical stability, it is important that the features be
         # roughly centered and of the same magnitude
-        fMean = [-434.1764705882353, -575.4411764705883, -700.2352941176471, 530.2941176470588, 784.5294117647059, 752.1470588235294, 0.015691073632250106, 0.016809954751131218, 0.025752377331863807]
-        fStd = [223.55424010717442, 295.8258819341968, 373.0983200195145, 401.14846374552894, 514.5700224055785, 313.24310539832277, 0.021996706669242815, 0.01863042596407224, 0.026509648829214846]
-        fRaw = [min500,
-                min700,
-                min850,
-                max500,
-                max700,
-                max850,
-                liftArea500,
+        fMean = [0.03250895446017398, 0.037120927852635176, 0.041205600599617545]
+        fStd = [0.04348280488209664, 0.049065388508064946, 0.042385589484773466]
+        fRaw = [liftArea500,
                 liftArea700,
                 liftArea850]
                 #cloudCoverArea]
