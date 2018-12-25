@@ -35,7 +35,7 @@ class AbstractWaveClassifier:
 
 class KCVHWaveClassifier:
     def __init__(self):
-        self.weight = [0.97959826 1.05104664 1.19487818]
+        self.weight = [0.97959826, 1.05104664, 1.19487818]
         self.bias = -2.49384207861
         self.threshold = 0.0
 
