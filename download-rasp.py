@@ -72,7 +72,7 @@ if __name__=='__main__':
     parser.add_argument('-d', '--day', type=int, default=0, help='Offset in days from today')
     parser.add_argument('-t', '--type', type=str, choices=['all', 'raw', 'images'], default='raw', help='What kind of files to download')
     parser.add_argument('-b', '--binary', action='store_true', help='Write data files in binary format')
-    parser.add_argument('-c', '--times', nargs='+', type=int, default=[1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800], metavar='lst', help='What times to download data for')
+    parser.add_argument('-c', '--times', nargs='+', type=int, default=[1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800], metavar='lst', help='What times to download data for')
     args = parser.parse_args()
 
     dataNames = (
