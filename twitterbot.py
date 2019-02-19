@@ -198,6 +198,38 @@ def goodLocalDays(classifier, baseURL, times, lookahead):
 
     return localDays
 
+def readState(filename):
+    state = {
+        'local-days': set(),
+        'wave-days': set(),
+        'xc-days': set()
+    }
+    try:
+        file = open(filename, 'r')
+        fileState = json.load(file)
+        file.close()
+        for daysKey in state:
+            if daysKey not in fileState:
+                continue
+            dates = set()
+            for dateStr in fileState[daysKey]:
+                (y,m,d) = re.search('(\d+)-(\d+)-(\d+)', dateStr).groups()
+                dates.add(datetime.date(int(y), int(m), int(d)))
+            state[daysKey] = dates
+    except (IOError, ValueError) as err:
+        logging.info('State file not opened: {0}'.format(err))
+
+    return state
+
+def writeState(state, filename):
+    with open(filename, 'w+', encoding='utf-8') as file:
+        jsonState = {}
+        for daysKey in state:
+            jsonState[daysKey] = [date.strftime(u'%Y-%m-%d') for date in state[daysKey]]
+        #json.dump(state, file)
+        # The JSON module is so damn dumb
+        file.write(str(json.dumps(jsonState)))
+
 if __name__=='__main__':
 
     # Arguments
@@ -231,32 +263,7 @@ if __name__=='__main__':
         logging.info('Version {0}'.format(vFile.readline()))
 
     # Load the state
-    state = {
-        'local-days': set(),
-        'wave-days': set(),
-        'xc-days': set()
-    }
-    try:
-        file = open('.state.json', 'r')
-        state = json.load(file)
-        dates = set()
-        for dateStr in state['local-days']:
-            (y,m,d) = re.search('(\d+)-(\d+)-(\d+)', dateStr).groups()
-            dates.add(datetime.date(int(y), int(m), int(d)))
-        state['local-days'] = dates
-        dates = set()
-        for dateStr in state['wave-days']:
-            (y,m,d) = re.search('(\d+)-(\d+)-(\d+)', dateStr).groups()
-            dates.add(datetime.date(int(y), int(m), int(d)))
-        state['wave-days'] = dates
-        dates = set()
-        for dateStr in state['xc-days']:
-            (y,m,d) = re.search('(\d+)-(\d+)-(\d+)', dateStr).groups()
-            dates.add(datetime.date(int(y), int(m), int(d)))
-        state['xc-days'] = dates
-        file.close()
-    except (IOError, ValueError) as err:
-        logging.info('State file not opened: {0}'.format(err))
+    state = readState('.state.json')
 
     # We spawn threads for tweeting, since we want to potentially do a long-waiting
     # retry loop in case something is temporarily-wrong with the network.
@@ -315,13 +322,7 @@ if __name__=='__main__':
         logging.info('I do not see XC in the forecast.')
 
     # Write state back
-    with open('.state.json', 'w+', encoding='utf-8') as file:
-        state['local-days'] = [date.strftime(u'%Y-%m-%d') for date in state['local-days']]
-        state['wave-days'] = [date.strftime(u'%Y-%m-%d') for date in state['wave-days']]
-        state['xc-days'] = [date.strftime(u'%Y-%m-%d') for date in state['xc-days']]
-        #json.dump(state, file)
-        # The JSON module is so damn dumb
-        file.write(str(json.dumps(state)))
+    writeState(state, '.state.json')
 
     # Wait for all threads to complete
     for thread in tweetThreads:
