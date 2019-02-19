@@ -54,6 +54,10 @@ def area(image, dims, predicate):
     totalPredicate = sum([1 if predicate(x) else 0 for x in validValues])
     return float(totalPredicate) / total
 
+def integral(image, dims):
+    validValues = [at(coord, image) for coord in rectDomain(dims) if isValueValid(at(coord, image))]
+    return sum(validValues)
+
 # Parse the data into image, (width, height)
 def parseData(fileStream):
     data = [];
