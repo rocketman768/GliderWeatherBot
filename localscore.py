@@ -21,11 +21,11 @@ import argparse
 import json
 import math
 import os
-import sys
+#import sys
 from builtins import zip
 from io import open
 
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 import datasource
 import raspdata

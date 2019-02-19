@@ -42,6 +42,8 @@ except ImportError:
 
 import datasource
 import raspdata
+
+import localscore
 import wavescore
 import xcscore
 
@@ -173,20 +175,47 @@ def goodXCDays(classifier, baseURL, times, lookahead, startCoordinate, endCoordi
 
     return xcDays
 
+# Detect local soaring days
+def goodLocalDays(classifier, baseURL, times, lookahead):
+    localDays = set()
+    dataSource = datasource.WebRASPDataSource(baseURL)
+    for day in range(lookahead):
+        date = datetime.date.today() + datetime.timedelta(day)
+        isLocalDay = False
+        isHardToClassify = False
+        for time in times:
+            dataTimeSlice = datasource.WebRASPDataTimeSlice(dataSource, day, time)
+            try:
+                isLocal, score = classifier.classify(dataTimeSlice)
+                isLocalDay |= isLocal
+                isHardToClassify |= (score >= -1.0) and (score <= 1.0)
+            except:
+                logging.exception('Unable to download one of the files for day {0} time {1}'.format(day, time))
+                continue
+            logging.info(' - {0}Local {1}+{2}: {3:.3f}'.format('*' if isLocal else '', date.isoformat(), time, score))
+        if isLocalDay:
+            localDays.add(date)
+
+    return localDays
+
 if __name__=='__main__':
 
     # Arguments
     parser = argparse.ArgumentParser(description='Tweet about good soaring forecasts')
     parser.add_argument('-n', '--dry-run', action='store_true', help='Do not actually tweet anything.')
     parser.add_argument('-l', '--log-path', type=str, default='/home/pi', metavar='path', help='Logging path')
+    parser.add_argument('--local-url', type=str, default='https://rasp.nfshost.com/norcal-coast', metavar='url', help='Base URL for local RASP data')
     parser.add_argument('-u', '--wave-url', type=str, default='https://rasp.nfshost.com/hollister', metavar='url', help='Base URL for wave RASP data')
     parser.add_argument('-v', '--xc-url', type=str, default='https://rasp.nfshost.com/norcal-coast', metavar='url', help='Base URL for XC RASP data')
+    parser.add_argument('--local-lookahead', type=int, default=7, metavar='ndays', help='How many days to look ahead for local forecasts')
     parser.add_argument('-d', '--wave-lookahead', type=int, default=3, metavar='ndays', help='How many days to look ahead for wave forecasts')
     parser.add_argument('-e', '--xc-lookahead', type=int, default=7, metavar='ndays', help='How many days to look ahead for XC forecasts')
+    parser.add_argument('--local-times', nargs='+', type=int, metavar='lst', default=[1000, 1100, 1200, 1300, 1400, 1500, 1600], help='List of local times to check for local conditions')
     parser.add_argument('-t', '--wave-times', nargs='+', type=int, metavar='lst', default=[1000, 1100, 1200, 1300, 1400, 1500, 1600], help='List of local times to check for wave conditions')
     parser.add_argument('-s', '--xc-times', nargs='+', type=int, default=[1400], metavar='lst', help='List of local times to check for XC conditions')
     parser.add_argument('-a', '--xc-start-coordinate', nargs=2, type=int, default=xcscore.RELEASE_RANCH, metavar='x', help='Starting coordinate for XC classification')
     parser.add_argument('-b', '--xc-end-coordinate', nargs=2, type=int, default=xcscore.BLACK_MOUNTAIN, metavar='x', help='End coordinate for XC classification')
+    parser.add_argument('--local-classifier', type=str, default='KCVH', metavar='name', help='Name of the local classifier')
     parser.add_argument('-c', '--wave-classifier', type=str, default='KCVH', metavar='name', help='Name of the wave classifier')
     parser.add_argument('-f', '--xc-classifier', type=str, default='KCVH', metavar='name', help='Name of the XC classifier')
     args = parser.parse_args()
@@ -203,12 +232,18 @@ if __name__=='__main__':
 
     # Load the state
     state = {
+        'local-days': set(),
         'wave-days': set(),
         'xc-days': set()
     }
     try:
         file = open('.state.json', 'r')
         state = json.load(file)
+        dates = set()
+        for dateStr in state['local-days']:
+            (y,m,d) = re.search('(\d+)-(\d+)-(\d+)', dateStr).groups()
+            dates.add(datetime.date(int(y), int(m), int(d)))
+        state['local-days'] = dates
         dates = set()
         for dateStr in state['wave-days']:
             (y,m,d) = re.search('(\d+)-(\d+)-(\d+)', dateStr).groups()
@@ -227,8 +262,25 @@ if __name__=='__main__':
     # retry loop in case something is temporarily-wrong with the network.
     tweetThreads = []
 
+    localClassifier = localscore.LocalClassifierFactory.classifier(args.local_classifier)
     waveClassifier = wavescore.WaveClassifierFactory.classifier(args.wave_classifier)
     xcClassifier = xcscore.XCClassifierFactory.classifier(args.xc_classifier)
+
+    # Run local soaring day detection
+    localDays = goodLocalDays(localClassifier, args.local_url, args.local_times, args.local_lookahead)
+    # Remove any days we have already notified on
+    localDays -= state['local-days']
+    state['local-days'] |= localDays
+    if len(localDays) > 0:
+        tweetString = 'Local Soaring Alert! These days may be good for local soaring: ' + daysString(localDays) + '.'
+        tweetString += '\n.\n' + args.local_url
+
+        # Try to tweet it out
+        tweetThread = threading.Thread(target=tweet, args=(tweetString, 4, None, args.dry_run))
+        tweetThreads.append(tweetThread)
+        tweetThread.start()
+    else:
+        logging.info('I do not see local soaring in the forecast.')
 
     # Run wave day detection
     (waveDays, waveImageURL) = goodWaveDays(waveClassifier, args.wave_url, args.wave_times, args.wave_lookahead)
