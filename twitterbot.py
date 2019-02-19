@@ -316,6 +316,7 @@ if __name__=='__main__':
 
     # Write state back
     with open('.state.json', 'w+', encoding='utf-8') as file:
+        state['local-days'] = [date.strftime(u'%Y-%m-%d') for date in state['local-days']]
         state['wave-days'] = [date.strftime(u'%Y-%m-%d') for date in state['wave-days']]
         state['xc-days'] = [date.strftime(u'%Y-%m-%d') for date in state['xc-days']]
         #json.dump(state, file)
