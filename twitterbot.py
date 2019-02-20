@@ -117,7 +117,7 @@ def tweet(message, retries, imgUrl=None, dryRun=False):
 def daysString(dates):
     ret = ''
     first = True
-    for date in dates:
+    for date in sorted(dates):
         ret += '' if first else ', '
         ret += date.strftime("%A %d %b")
         first = False
@@ -269,6 +269,16 @@ if __name__=='__main__':
     # retry loop in case something is temporarily-wrong with the network.
     tweetThreads = []
 
+    def tweetAlert(alertString, days, imageURL, raspURL):
+        if len(days) > 0:
+            tweetString = alertString + daysString(days) + '.'
+            tweetString += '\n.\n' + raspURL
+
+            # Try to tweet it out
+            tweetThread = threading.Thread(target=tweet, args=(tweetString, 4, imageURL, args.dry_run))
+            tweetThreads.append(tweetThread)
+            tweetThread.start()
+
     localClassifier = localscore.LocalClassifierFactory.classifier(args.local_classifier)
     waveClassifier = wavescore.WaveClassifierFactory.classifier(args.wave_classifier)
     xcClassifier = xcscore.XCClassifierFactory.classifier(args.xc_classifier)
@@ -278,48 +288,21 @@ if __name__=='__main__':
     # Remove any days we have already notified on
     localDays -= state['local-days']
     state['local-days'] |= localDays
-    if len(localDays) > 0:
-        tweetString = 'Local Soaring Alert! These days may be good for local soaring: ' + daysString(localDays) + '.'
-        tweetString += '\n.\n' + args.local_url
-
-        # Try to tweet it out
-        tweetThread = threading.Thread(target=tweet, args=(tweetString, 4, None, args.dry_run))
-        tweetThreads.append(tweetThread)
-        tweetThread.start()
-    else:
-        logging.info('I do not see local soaring in the forecast.')
+    tweetAlert('Local Soaring Alert! These days may be good for local soaring: ', localDays, None, args.local_url)
 
     # Run wave day detection
     (waveDays, waveImageURL) = goodWaveDays(waveClassifier, args.wave_url, args.wave_times, args.wave_lookahead)
     # Remove any days we have already notified on
     waveDays -= state['wave-days']
     state['wave-days'] |= waveDays
-    if len(waveDays) > 0:
-        tweetString = 'Wave Alert! These days may have wave: ' + daysString(waveDays) + '.'
-        tweetString += '\n.\n' + args.wave_url
-
-        # Try to tweet it out
-        tweetThread = threading.Thread(target=tweet, args=(tweetString, 4, waveImageURL, args.dry_run))
-        tweetThreads.append(tweetThread)
-        tweetThread.start()
-    else:
-        logging.info('I do not see wave in the forecast.')
+    tweetAlert('Wave Alert! These days may have wave: ', waveDays, waveImageURL, args.wave_url)
 
     # Run XC day detection
     xcDays = goodXCDays(xcClassifier, args.xc_url, args.xc_times, args.xc_lookahead, tuple(args.xc_start_coordinate), tuple(args.xc_end_coordinate))
     # Remove any days we have already notified on
     xcDays -= state['xc-days']
     state['xc-days'] |= xcDays
-    if len(xcDays) > 0:
-        tweetString = 'XC Alert! These days may be runnable: ' + daysString(xcDays) + '.'
-        tweetString += '\n.\n' + args.xc_url
-
-        # Try to tweet it out
-        tweetThread = threading.Thread(target=tweet, args=(tweetString, 4, None, args.dry_run))
-        tweetThreads.append(tweetThread)
-        tweetThread.start()
-    else:
-        logging.info('I do not see XC in the forecast.')
+    tweetAlert('XC Alert! These days may be runnable: ', xcDays, None, args.xc_url)
 
     # Write state back
     writeState(state, '.state.json')
