@@ -136,6 +136,12 @@ class KCVHXCClassifier(AbstractXCClassifier):
 
         path = bestPath(startCoordinate, endCoordinate, width, height, hwcrit, wblmaxmin)
 
+        #plt.imshow([[hwcrit(x, y) for x in range(dims[0])] for y in range(dims[1])])
+        #plt.plot([x for (x,y) in path],[y for (x,y) in path])
+        #plt.show()
+        #plt.axis('off')
+        #plt.savefig('/tmp/foo.png', bbox_inches='tight', pad_inches=0)
+
         maxH = max([raspdata.at(u, hwcrit) for u in path])
         avgH = sum([raspdata.at(u, hwcrit) for u in path]) / len(path)
         minH = min([raspdata.at(u, hwcrit) for u in path])

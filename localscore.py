@@ -31,12 +31,12 @@ import datasource
 import raspdata
 
 # NOTE: eyeballed
-KCVH = (16,91)
+KCVH = (15,91)
 
 class KCVHLocalClassifier:
     def __init__(self):
-        self.weight = [ 0.24135028, -0.75850324, 0.76577507]
-        self.bias = -0.202116370782
+        self.weight = [-0.15727394, -0.48120732, 1.16530002]
+        self.bias = 0.0845322650514
         self.threshold = 0.0
 
     def feature(self, raspDataTimeSlice):
@@ -83,13 +83,20 @@ class KCVHLocalClassifier:
         avgSunnyCuBase = raspdata.integral(sunnyCuBase, dims) / (sunnyCuArea + 0.001)
 
         #asdf = [[dataHcrit(x, y) for x in range(dims[0])] for y in range(dims[1])]
+        #asdf = [[dataHcrit(x, y) for x in range(0, KCVH[0] + 16)] for y in reversed(range(KCVH[1] - 16, KCVH[1] + 16))]
         #asdf = [[sunnyCuPredicate(x, y) for x in range(dims[0])] for y in reversed(range(dims[1]))]
-        #plt.imshow(asdf)
+        #plt.imshow(asdf, cmap=plt.cm.get_cmap("seismic"), vmin=0, vmax=7000, interpolation='quadric')
+        #plt.colorbar()
+        #plt.plot([KCVH[0]], [16], 'ko')
+        #plt.text(KCVH[0], 16-1, 'KCVH', horizontalalignment='right', color='red')
+        #plt.axis('off')
+        #plt.title('Hcrit')
+        #plt.savefig('/tmp/foo.png', bbox_inches='tight', pad_inches=0)
         #plt.show()
 
         fRaw = [areaWhereGlideRatioIsSmall, avgSunnyCuGlideRatio, avgSunnyCuBase]
-        fMean = [0.1337573990635215, 39.12917540538231, 4529.291208017459]
-        fStd = [0.05567152706291506, 9.018629510168408, 1353.4356581491024]
+        fMean = [0.15390316205533594, 34.15506672965842, 5078.433048507441]
+        fStd = [0.06218479626157944, 11.551840246133619, 1535.9700754572946]
 
         return [(x - m) / s for (x,m,s) in zip(fRaw, fMean, fStd)]
         #return fRaw
