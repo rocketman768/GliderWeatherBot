@@ -22,9 +22,7 @@ import datetime
 import json
 import logging
 import os
-import random
 import re
-import string
 import threading
 import time
 import tweepy
@@ -42,15 +40,12 @@ except ImportError:
 
 import datasource
 import raspdata
+import utilities
 
 import localscore
 import wavescore
 import xcscore
 
-# Return a random string of lowercase letters of the given length
-def randomString(length):
-    letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for i in range(length))
 
 # Download the file with the specified url to the given path
 def download(url, path):
@@ -86,9 +81,11 @@ def tweet(message, retries, imgUrl=None, dryRun=False):
 
     imagePath = None
     # Download the image if we are given one
-    if imgUrl:
-        imagePath = '/tmp/{0}.png'.format(randomString(8))
+    if imgUrl and imgUrl.startswith('http'):
+        imagePath = '/tmp/{0}.png'.format(utilities.randomString(8))
         download(imgUrl, imagePath)
+    elif imgUrl:
+        imagePath = imgUrl
 
     # Do the tweet loop
     tweetSuccess = False
@@ -156,6 +153,8 @@ def goodWaveDays(classifier, baseURL, times, lookahead):
 def goodXCDays(classifier, baseURL, times, lookahead, startCoordinate, endCoordinate):
     xcDays = set()
     dataSource = datasource.WebRASPDataSource(baseURL)
+    maxScore = -1000.0
+    bestTimeSlice = None
     for day in range(lookahead):
         date = datetime.date.today() + datetime.timedelta(day)
         isXcDay = False
@@ -166,6 +165,10 @@ def goodXCDays(classifier, baseURL, times, lookahead, startCoordinate, endCoordi
                 isXc, score = classifier.classify(startCoordinate, endCoordinate, dataTimeSlice)
                 isXcDay |= isXc
                 isHardToClassify |= (score >= -1.0) and (score <= 1.0)
+                # Pick the time with the best score to use as the image
+                if score > maxScore:
+                    maxScore = score
+                    bestTimeSlice = dataTimeSlice
             except:
                 logging.exception('Unable to download one of the files for day {0} time {1}'.format(day, time))
                 continue
@@ -173,12 +176,14 @@ def goodXCDays(classifier, baseURL, times, lookahead, startCoordinate, endCoordi
         if isXcDay:
             xcDays.add(date)
 
-    return xcDays
+    return (xcDays, classifier.imageSummary(dataTimeSlice))
 
 # Detect local soaring days
 def goodLocalDays(classifier, baseURL, times, lookahead):
     localDays = set()
     dataSource = datasource.WebRASPDataSource(baseURL)
+    maxScore = -1000.0
+    bestTimeSlice = None
     for day in range(lookahead):
         date = datetime.date.today() + datetime.timedelta(day)
         isLocalDay = False
@@ -189,6 +194,10 @@ def goodLocalDays(classifier, baseURL, times, lookahead):
                 isLocal, score = classifier.classify(dataTimeSlice)
                 isLocalDay |= isLocal
                 isHardToClassify |= (score >= -1.0) and (score <= 1.0)
+                # Pick the time with the best score to use as the image
+                if score > maxScore:
+                    maxScore = score
+                    bestTimeSlice = dataTimeSlice
             except:
                 logging.exception('Unable to download one of the files for day {0} time {1}'.format(day, time))
                 continue
@@ -196,7 +205,7 @@ def goodLocalDays(classifier, baseURL, times, lookahead):
         if isLocalDay:
             localDays.add(date)
 
-    return localDays
+    return (localDays, classifier.imageSummary(dataTimeSlice))
 
 def readState(filename):
     state = {
@@ -284,11 +293,11 @@ if __name__=='__main__':
     xcClassifier = xcscore.XCClassifierFactory.classifier(args.xc_classifier)
 
     # Run local soaring day detection
-    localDays = goodLocalDays(localClassifier, args.local_url, args.local_times, args.local_lookahead)
+    (localDays, localImageURL) = goodLocalDays(localClassifier, args.local_url, args.local_times, args.local_lookahead)
     # Remove any days we have already notified on
     localDays -= state['local-days']
     state['local-days'] |= localDays
-    tweetAlert('Local Soaring Alert! These days may be good for local soaring: ', localDays, None, args.local_url)
+    tweetAlert('Local Soaring Alert! These days may be good for local soaring: ', localDays, localImageURL, args.local_url)
 
     # Run wave day detection
     (waveDays, waveImageURL) = goodWaveDays(waveClassifier, args.wave_url, args.wave_times, args.wave_lookahead)
@@ -298,11 +307,11 @@ if __name__=='__main__':
     tweetAlert('Wave Alert! These days may have wave: ', waveDays, waveImageURL, args.wave_url)
 
     # Run XC day detection
-    xcDays = goodXCDays(xcClassifier, args.xc_url, args.xc_times, args.xc_lookahead, tuple(args.xc_start_coordinate), tuple(args.xc_end_coordinate))
+    (xcDays, xcImageURL) = goodXCDays(xcClassifier, args.xc_url, args.xc_times, args.xc_lookahead, tuple(args.xc_start_coordinate), tuple(args.xc_end_coordinate))
     # Remove any days we have already notified on
     xcDays -= state['xc-days']
     state['xc-days'] |= xcDays
-    tweetAlert('XC Alert! These days may be runnable: ', xcDays, None, args.xc_url)
+    tweetAlert('XC Alert! These days may be runnable: ', xcDays, xcImageURL, args.xc_url)
 
     # Write state back
     writeState(state, '.state.json')

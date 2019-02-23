@@ -25,10 +25,13 @@ import os
 from builtins import zip
 from io import open
 
-#import matplotlib.pyplot as plt
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
 
 import datasource
 import raspdata
+import utilities
 
 # NOTE: eyeballed
 KCVH = (15,91)
@@ -38,6 +41,25 @@ class KCVHLocalClassifier:
         self.weight = [-0.15727394, -0.48120732, 1.16530002]
         self.bias = 0.0845322650514
         self.threshold = 0.0
+
+    def imageSummary(self, raspDataTimeSlice):
+        ret = '/tmp/{0}.png'.format(utilities.randomString(8))
+
+        with raspDataTimeSlice.open('hwcrit') as file:
+            (dataHcrit, dims) = raspdata.parseData(file)
+
+        imageData = [[dataHcrit(x, y) for x in range(0, KCVH[0] + 16)] for y in reversed(range(KCVH[1] - 16, KCVH[1] + 16))]
+
+        plt.clf()
+        plt.imshow(imageData, cmap=plt.cm.get_cmap('seismic'), vmin=0, vmax=7000, interpolation='quadric')
+        plt.colorbar()
+        plt.plot([KCVH[0]], [16], 'ko')
+        plt.text(KCVH[0], 16-1, 'KCVH', horizontalalignment='right', color='red')
+        plt.axis('off')
+        plt.title('Hcrit')
+        plt.savefig(ret, bbox_inches='tight', pad_inches=0)
+
+        return ret
 
     def feature(self, raspDataTimeSlice):
         gridResolution_km = 4.0

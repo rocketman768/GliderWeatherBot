@@ -21,13 +21,16 @@ import argparse
 import itertools
 import json
 import math
-#import matplotlib.pyplot as plt
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
 import os
 from builtins import range, zip
 from io import open
 
 import datasource
 import raspdata
+import utilities
 
 # Just eyeballing these locations and measuring pixels.
 # NOTE: in the data, y = 0 is the south edge
@@ -125,6 +128,40 @@ class KCVHXCClassifier(AbstractXCClassifier):
         if 'WEATHERBOT_XC_THRESHOLD' in os.environ:
             self.threshold = float(os.environ['WEATHERBOT_XC_THRESHOLD'])
 
+    def imageSummary(self, raspDataTimeSlice):
+        ret = '/tmp/{0}.png'.format(utilities.randomString(8))
+
+        with raspDataTimeSlice.open('hwcrit') as file:
+            (dataHcrit, dims) = raspdata.parseData(file)
+        with raspDataTimeSlice.open('wblmaxmin') as f:
+            wblmaxmin, _ = raspdata.parseData(f)
+
+        path = bestPath(RELEASE_RANCH, BLACK_MOUNTAIN, dims[0], dims[1], dataHcrit, wblmaxmin)
+        # Flip the path upside down
+        path = [(x, dims[1] - y) for (x,y) in path]
+
+        cropOrigin = (0, 135)
+        cropSize = (40, 40)
+
+        imageData = [[dataHcrit(x, y) for x in range(dims[0])] for y in reversed(range(dims[1]))]
+        # Flip the image upside down
+        imageData = [[imageData[y][x] for x in range(cropOrigin[0], cropOrigin[0] + cropSize[0])] for y in range(cropOrigin[1], cropOrigin[1] + cropSize[1])]
+
+        plt.clf()
+        plt.imshow(imageData, cmap=plt.cm.get_cmap('seismic'), vmin=1000, vmax=11000, interpolation='quadric')
+        plt.plot([x - cropOrigin[0] for (x,y) in path], [y - cropOrigin[1] for (x,y) in path], 'g-')
+        plt.colorbar()
+        plt.plot([RELEASE_RANCH[0] - cropOrigin[0]], [dims[1] - RELEASE_RANCH[1] - cropOrigin[1]], 'ko')
+        plt.plot([BLACK_MOUNTAIN[0] - cropOrigin[0]], [dims[1] - BLACK_MOUNTAIN[1] - cropOrigin[1]], 'ko')
+        plt.text(RELEASE_RANCH[0] - cropOrigin[0], dims[1] - RELEASE_RANCH[1] - cropOrigin[1] - 1, 'Rel. Ranch', horizontalalignment='right', color='black')
+        plt.text(BLACK_MOUNTAIN[0], dims[1] - BLACK_MOUNTAIN[1] - cropOrigin[1] - 1, 'Black Mt.', horizontalalignment='right', color='black')
+        plt.axis('off')
+        plt.title('Hcrit and Best Path')
+        plt.savefig(ret, bbox_inches='tight', pad_inches=0)
+        #plt.show()
+
+        return ret
+
     def feature(self, startCoordinate, endCoordinate, raspDataTimeSlice):
         with raspDataTimeSlice.open('hwcrit') as f:
             hwcrit, dims = raspdata.parseData(f)
@@ -136,6 +173,7 @@ class KCVHXCClassifier(AbstractXCClassifier):
 
         path = bestPath(startCoordinate, endCoordinate, width, height, hwcrit, wblmaxmin)
 
+        self.imageSummary(raspDataTimeSlice)
         #plt.imshow([[hwcrit(x, y) for x in range(dims[0])] for y in range(dims[1])])
         #plt.plot([x for (x,y) in path],[y for (x,y) in path])
         #plt.show()

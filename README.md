@@ -28,6 +28,7 @@ Please download the following packages (by `apt-get` or whatever).
 
  - python
  - python-future
+ - python-matplotlib
  - python-tweepy
  - python-sklearn
 
@@ -40,9 +41,9 @@ Figure out what options you need to pass to the `twitterbot.py` script. Please r
 Then, put these options, your twitter developer credentials, and your classifier parameters in a script like this (say `runtwitterbot.sh`):
 
     #!/bin/bash
-    
+
     cd $(dirname /path/to/twitterbot.py)
-    
+
     export WEATHERBOT_CONSUMER_KEY="asdf"
     export WEATHERBOT_CONSUMER_SECRET="jkl"
     export WEATHERBOT_ACCESS_TOKEN="asdfjkl"
@@ -53,7 +54,7 @@ Then, put these options, your twitter developer credentials, and your classifier
     export WEATHERBOT_XC_WEIGHT="1:2:3"
     export WEATHERBOT_XC_BIAS="24"
     export WEATHERBOT_XC_THRESHOLD="0"
-    
+
     ./twitterbot.py --wave-url 'https://...' ...
 
 To run this on a daily basis, edit the crontab appropriately (with `$ crontab -e`) to call this script.
