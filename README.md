@@ -48,12 +48,6 @@ Then, put these options, your twitter developer credentials, and your classifier
     export WEATHERBOT_CONSUMER_SECRET="jkl"
     export WEATHERBOT_ACCESS_TOKEN="asdfjkl"
     export WEATHERBOT_TOKEN_SECRET="jklasdf"
-    export WEATHERBOT_WAVE_WEIGHT="1:2:3:4:5:6:7:8:9"
-    export WEATHERBOT_WAVE_BIAS="42"
-    export WEATHERBOT_WAVE_THRESHOLD="0"
-    export WEATHERBOT_XC_WEIGHT="1:2:3"
-    export WEATHERBOT_XC_BIAS="24"
-    export WEATHERBOT_XC_THRESHOLD="0"
 
     ./twitterbot.py --wave-url 'https://...' ...
 
