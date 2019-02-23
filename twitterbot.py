@@ -96,6 +96,8 @@ def tweet(message, retries, imgUrl=None, dryRun=False):
             else:
                 api.update_status(message)
             tweetSuccess = True
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except:
             logging.exception('Failed to tweet. Will retry in 30 minutes.')
             retries -= 1
@@ -140,6 +142,8 @@ def goodWaveDays(classifier, baseURL, times, lookahead):
                 if score > maxWaveScore:
                     maxWaveScore = score
                     waveImageURL = '{0}/OUT+{1}/FCST/press{2}.curr.{3}lst.d2.body.png'.format(baseURL, day, 700, time)
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except:
                 logging.exception('Unable to download one of the files for day {0} time {1}'.format(day, time))
                 continue
@@ -169,6 +173,8 @@ def goodXCDays(classifier, baseURL, times, lookahead, startCoordinate, endCoordi
                 if score > maxScore:
                     maxScore = score
                     bestTimeSlice = dataTimeSlice
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except:
                 logging.exception('Unable to download one of the files for day {0} time {1}'.format(day, time))
                 continue
@@ -198,6 +204,8 @@ def goodLocalDays(classifier, baseURL, times, lookahead):
                 if score > maxScore:
                     maxScore = score
                     bestTimeSlice = dataTimeSlice
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except:
                 logging.exception('Unable to download one of the files for day {0} time {1}'.format(day, time))
                 continue
