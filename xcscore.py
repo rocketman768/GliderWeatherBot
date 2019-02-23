@@ -131,10 +131,15 @@ class KCVHXCClassifier(AbstractXCClassifier):
     def imageSummary(self, raspDataTimeSlice):
         ret = '/tmp/{0}.png'.format(utilities.randomString(8))
 
-        with raspDataTimeSlice.open('hwcrit') as file:
-            (dataHcrit, dims) = raspdata.parseData(file)
-        with raspDataTimeSlice.open('wblmaxmin') as f:
-            wblmaxmin, _ = raspdata.parseData(f)
+        try:
+            with raspDataTimeSlice.open('hwcrit') as file:
+                (dataHcrit, dims) = raspdata.parseData(file)
+            with raspDataTimeSlice.open('wblmaxmin') as f:
+                wblmaxmin, _ = raspdata.parseData(f)
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            return None
 
         path = bestPath(RELEASE_RANCH, BLACK_MOUNTAIN, dims[0], dims[1], dataHcrit, wblmaxmin)
         # Flip the path upside down

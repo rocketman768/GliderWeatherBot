@@ -45,8 +45,13 @@ class KCVHLocalClassifier:
     def imageSummary(self, raspDataTimeSlice):
         ret = '/tmp/{0}.png'.format(utilities.randomString(8))
 
-        with raspDataTimeSlice.open('hwcrit') as file:
-            (dataHcrit, dims) = raspdata.parseData(file)
+        try:
+            with raspDataTimeSlice.open('hwcrit') as file:
+                (dataHcrit, dims) = raspdata.parseData(file)
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            return None
 
         imageData = [[dataHcrit(x, y) for x in range(0, KCVH[0] + 16)] for y in reversed(range(KCVH[1] - 16, KCVH[1] + 16))]
 
