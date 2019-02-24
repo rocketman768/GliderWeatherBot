@@ -38,8 +38,8 @@ KCVH = (15,91)
 
 class KCVHLocalClassifier:
     def __init__(self):
-        self.weight = [-0.15727394, -0.48120732, 1.16530002]
-        self.bias = 0.0845322650514
+        self.weight = [0.96896464, -0.41886308, 1.04899457]
+        self.bias = -0.351320757116
         self.threshold = 0.0
 
     def imageSummary(self, raspDataTimeSlice):
