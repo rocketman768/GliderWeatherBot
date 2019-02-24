@@ -17,6 +17,8 @@ from io import open
 
 # Represents a 'timeless' instantaneous slice of data
 class RASPDataTimeSlice:
+    def time(self):
+        raise NotImplementedError()
     def open(self, parameter):
         raise NotImplementedError()
 
@@ -52,6 +54,8 @@ class WebRASPDataTimeSlice(RASPDataTimeSlice):
         self.__time = time
     def open(self, parameter):
         return self.__webDataSource.open(parameter, self.__dayOffset, self.__time)
+    def time(self):
+        return self.__time
 
 class ArchivedRASPDataTimeSlice(RASPDataTimeSlice):
     def __init__(self, archivedDataSource, time):
@@ -59,6 +63,8 @@ class ArchivedRASPDataTimeSlice(RASPDataTimeSlice):
         self.__time = time
     def open(self, parameter):
         return self.__archivedDataSource.open(parameter, self.__time)
+    def time(self):
+        return self.__time
 
 ## Soundings
 
