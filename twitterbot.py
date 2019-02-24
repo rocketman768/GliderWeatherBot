@@ -182,7 +182,7 @@ def goodXCDays(classifier, baseURL, times, lookahead, startCoordinate, endCoordi
         if isXcDay:
             xcDays.add(date)
 
-    return (xcDays, classifier.imageSummary(dataTimeSlice))
+    return (xcDays, classifier.imageSummary(bestTimeSlice))
 
 # Detect local soaring days
 def goodLocalDays(classifier, baseURL, times, lookahead):
@@ -213,7 +213,7 @@ def goodLocalDays(classifier, baseURL, times, lookahead):
         if isLocalDay:
             localDays.add(date)
 
-    return (localDays, classifier.imageSummary(dataTimeSlice))
+    return (localDays, classifier.imageSummary(bestTimeSlice))
 
 def readState(filename):
     state = {
