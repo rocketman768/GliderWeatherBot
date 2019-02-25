@@ -29,6 +29,7 @@ import os
 from builtins import range, str, zip
 from io import open
 
+import datasource
 import pgzfile
 
 def rectDomain(dims):
@@ -151,3 +152,59 @@ def learn(features, labels):
     weight = classifier.coef_[0]
     bias = classifier.intercept_[0]
     return weight, bias
+
+def featuresAndLabelsFromDataset(pos, neg, classifier):
+    features = []
+    labels = []
+    for item in pos:
+        dataSource = datasource.ArchivedRASPDataSource(item[0])
+        for time in item[1]:
+            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
+            features.append(classifier.feature(dataTimeSlice))
+            labels.append(1.0)
+
+    for item in neg:
+        dataSource = datasource.ArchivedRASPDataSource(item[0])
+        for time in item[1]:
+            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
+            features.append(classifier.feature(dataTimeSlice))
+            labels.append(0.0)
+
+    return features, labels
+
+def evaluateDataset(pos, neg, classifier):
+    nPos = sum(len(item[1]) for item in pos)
+    nNeg = sum(len(item[1]) for item in neg)
+    truePos = 0
+    trueNeg = 0
+    print('## Positives ##')
+    for item in pos:
+        dataSource = datasource.ArchivedRASPDataSource(item[0])
+        for time in item[1]:
+            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
+            feature = classifier.feature(dataTimeSlice)
+            _, score = classifier.classify(dataTimeSlice)
+            if score >= classifier.threshold:
+                truePos += 1
+            print(' - {0}-{1}: {2:.3f}'.format(item[0], time, score))
+            print('   Feature: {0}'.format(feature))
+            print('   Score contribution: {0}'.format(['{0:.3f}'.format(x*w) for (x,w) in zip(feature, classifier.weight)]))
+    print ('## Negatives ##')
+    for item in neg:
+        dataSource = datasource.ArchivedRASPDataSource(item[0])
+        for time in item[1]:
+            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
+            feature = classifier.feature(dataTimeSlice)
+            _, score = classifier.classify(dataTimeSlice)
+            if score < classifier.threshold:
+                trueNeg += 1
+            print(' - {0}-{1}: {2:.3f}'.format(item[0], time, score))
+            print('   Feature: {0}'.format(feature))
+            print('   Score contribution: {0}'.format(['{0:.3f}'.format(x*w) for (x,w) in zip(feature, classifier.weight)]))
+
+    falseNeg = nPos - truePos
+    falsePos = nNeg - trueNeg
+    precision = float(truePos) / (truePos + falsePos) if truePos > 0 else 0
+    recall = float(truePos) / nPos if truePos > 0 else 0
+    print('Precision: {0:.1f}%'.format(100 * precision))
+    print('Recall: {0:.1f}%'.format(100* recall))

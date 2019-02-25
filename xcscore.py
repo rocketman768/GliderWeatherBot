@@ -28,7 +28,6 @@ import os
 from builtins import range, zip
 from io import open
 
-import datasource
 import raspdata
 import utilities
 
@@ -167,7 +166,10 @@ class KCVHXCClassifier(AbstractXCClassifier):
 
         return ret
 
-    def feature(self, startCoordinate, endCoordinate, raspDataTimeSlice):
+    def feature(self, raspDataTimeSlice):
+        startCoordinate = RELEASE_RANCH
+        endCoordinate = BLACK_MOUNTAIN
+
         with raspDataTimeSlice.open('hwcrit') as f:
             hwcrit, dims = raspdata.parseData(f)
         with raspDataTimeSlice.open('wblmaxmin') as f:
@@ -193,8 +195,8 @@ class KCVHXCClassifier(AbstractXCClassifier):
         # NOTE: normalizing the data is absolutely necessary.
         return [(maxH - 6579.0) / 2280.0, (avgH - 5689.0) / 2206.0, (minH - 4711.0) / 2154.0]
 
-    def classify(self, startCoordinate, endCoordinate, raspDataTimeSlice):
-        f = self.feature(startCoordinate, endCoordinate, raspDataTimeSlice)
+    def classify(self, raspDataTimeSlice):
+        f = self.feature(raspDataTimeSlice)
         s = raspdata.score(f, self.weight, self.bias)
         classification = True if s > self.threshold else False
         return classification, s
@@ -209,64 +211,6 @@ class XCClassifierFactory:
     @staticmethod
     def classifier(name):
         return XCClassifierFactory.__classFromName()[name]()
-
-# -- Just for learning --
-
-def featuresAndLabelsFromDataset(pos, neg, classifier, startCoordinate, endCoordinate):
-    features = []
-    labels = []
-    for item in pos:
-        dataSource = datasource.ArchivedRASPDataSource(item[0])
-        for time in item[1]:
-            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
-            features.append(classifier.feature(startCoordinate, endCoordinate, dataTimeSlice))
-            labels.append(1.0)
-
-    for item in neg:
-        dataSource = datasource.ArchivedRASPDataSource(item[0])
-        for time in item[1]:
-            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
-            features.append(classifier.feature(startCoordinate, endCoordinate, dataTimeSlice))
-            labels.append(0.0)
-
-    return features, labels
-
-def evaluateDataset(pos, neg, classifier, startCoordinate, endCoordinate):
-    nPos = sum(len(item[1]) for item in pos)
-    nNeg = sum(len(item[1]) for item in neg)
-    truePos = 0
-    trueNeg = 0
-    print('## Positives ##')
-    for item in pos:
-        dataSource = datasource.ArchivedRASPDataSource(item[0])
-        for time in item[1]:
-            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
-            feature = classifier.feature(startCoordinate, endCoordinate, dataTimeSlice)
-            _, score = classifier.classify(startCoordinate, endCoordinate, dataTimeSlice)
-            if score >= classifier.threshold:
-                truePos += 1
-            print(' - {0}: {1:.3f}'.format(item[0], score))
-            print('   Feature: {0}'.format(feature))
-            print('   Score contribution: {0}'.format(['{0:.3f}'.format(x*w) for (x,w) in zip(feature, classifier.weight)]))
-    print('## Negatives ##')
-    for item in neg:
-        dataSource = datasource.ArchivedRASPDataSource(item[0])
-        for time in item[1]:
-            dataTimeSlice = datasource.ArchivedRASPDataTimeSlice(dataSource, time)
-            feature = classifier.feature(startCoordinate, endCoordinate, dataTimeSlice)
-            _, score = classifier.classify(startCoordinate, endCoordinate, dataTimeSlice)
-            if score < classifier.threshold:
-                trueNeg += 1
-            print(' - {0}: {1:.3f}'.format(item[0], score))
-            print('   Feature: {0}'.format(feature))
-            print('   Score contribution: {0}'.format(['{0:.3f}'.format(x*w) for (x,w) in zip(feature, classifier.weight)]))
-
-    falseNeg = nPos - truePos
-    falsePos = nNeg - trueNeg
-    precision = float(truePos) / (truePos + falsePos) if truePos > 0 else 0
-    recall = float(truePos) / nPos if truePos > 0 else 0
-    print('Precision: {0:.1f}%'.format(100 * precision))
-    print('Recall: {0:.1f}%'.format(100* recall))
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Learn good XC days from a dataset')
@@ -287,7 +231,7 @@ if __name__=='__main__':
     startCoordinate = tuple(args.xc_start_coordinate)
     endCoordinate = tuple(args.xc_end_coordinate)
 
-    (features, labels) = featuresAndLabelsFromDataset(positives, negatives, classifier, startCoordinate, endCoordinate)
+    (features, labels) = raspdata.featuresAndLabelsFromDataset(positives, negatives, classifier)
 
     (fMin, fMax, fMean, fStd) = raspdata.featureStats(features)
     print('Feature min: {0}'.format(fMin))
@@ -295,13 +239,13 @@ if __name__=='__main__':
     print('Feature mean: {0}'.format(fMean))
     print('Feature std: {0}'.format(fStd))
 
-    evaluateDataset(positives, negatives, classifier, startCoordinate, endCoordinate)
+    raspdata.evaluateDataset(positives, negatives, classifier)
     print('Weight: {0}'.format(classifier.weight))
     print('Bias: {0}'.format(classifier.bias))
     print('\n\n')
 
     (classifier.weight, classifier.bias) = raspdata.learn(features, labels)
 
-    evaluateDataset(positives, negatives, classifier, startCoordinate, endCoordinate)
+    raspdata.evaluateDataset(positives, negatives, classifier)
     print('Weight: {0}'.format(classifier.weight))
     print('Bias: {0}'.format(classifier.bias))

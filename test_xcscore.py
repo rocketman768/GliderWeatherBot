@@ -14,11 +14,9 @@ def test_feature():
         datasource.ArchivedRASPDataSource('test-data'),
         1400
     )
-    startCoordinate = (0, 0)
-    endCoordinate = (1, 1)
     for name in xcscore.XCClassifierFactory.allClassifierNames():
         classifier = xcscore.XCClassifierFactory.classifier(name)
-        feature = classifier.feature(startCoordinate, endCoordinate, dataSlice)
+        feature = classifier.feature(dataSlice)
         assert type(feature) == list
         assert len(feature) == len(classifier.weight)
         for item in feature:
@@ -29,10 +27,8 @@ def test_classify():
         datasource.ArchivedRASPDataSource('test-data'),
         1400
     )
-    startCoordinate = (0, 0)
-    endCoordinate = (1, 1)
     for name in xcscore.XCClassifierFactory.allClassifierNames():
         classifier = xcscore.XCClassifierFactory.classifier(name)
-        c, score = classifier.classify(startCoordinate, endCoordinate, dataSlice)
+        c, score = classifier.classify(dataSlice)
         assert type(c) == bool
         assert type(score) == float

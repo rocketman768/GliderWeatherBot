@@ -154,7 +154,7 @@ def goodWaveDays(classifier, baseURL, times, lookahead):
     return waveDays, waveImageURL
 
 # Detect XC days
-def goodXCDays(classifier, baseURL, times, lookahead, startCoordinate, endCoordinate):
+def goodXCDays(classifier, baseURL, times, lookahead):
     xcDays = set()
     dataSource = datasource.WebRASPDataSource(baseURL)
     maxScore = -1000.0
@@ -166,7 +166,7 @@ def goodXCDays(classifier, baseURL, times, lookahead, startCoordinate, endCoordi
         for time in times:
             dataTimeSlice = datasource.WebRASPDataTimeSlice(dataSource, day, time)
             try:
-                isXc, score = classifier.classify(startCoordinate, endCoordinate, dataTimeSlice)
+                isXc, score = classifier.classify(dataTimeSlice)
                 isXcDay |= isXc
                 isHardToClassify |= (score >= -1.0) and (score <= 1.0)
                 # Pick the time with the best score to use as the image
@@ -262,8 +262,6 @@ if __name__=='__main__':
     parser.add_argument('--local-times', nargs='+', type=int, metavar='lst', default=[1000, 1100, 1200, 1300, 1400, 1500, 1600], help='List of local times to check for local conditions')
     parser.add_argument('--wave-times', nargs='+', type=int, metavar='lst', default=[1000, 1100, 1200, 1300, 1400, 1500, 1600], help='List of local times to check for wave conditions')
     parser.add_argument('--xc-times', nargs='+', type=int, default=[1400], metavar='lst', help='List of local times to check for XC conditions')
-    parser.add_argument('--xc-start-coordinate', nargs=2, type=int, default=xcscore.RELEASE_RANCH, metavar='x', help='Starting coordinate for XC classification')
-    parser.add_argument('--xc-end-coordinate', nargs=2, type=int, default=xcscore.BLACK_MOUNTAIN, metavar='x', help='End coordinate for XC classification')
     parser.add_argument('--local-classifier', type=str, default='KCVH', metavar='name', help='Name of the local classifier')
     parser.add_argument('--wave-classifier', type=str, default='KCVH', metavar='name', help='Name of the wave classifier')
     parser.add_argument('--xc-classifier', type=str, default='KCVH', metavar='name', help='Name of the XC classifier')
@@ -315,7 +313,7 @@ if __name__=='__main__':
     tweetAlert('Wave Alert! These days may have wave: ', waveDays, waveImageURL, args.wave_url)
 
     # Run XC day detection
-    (xcDays, xcImageURL) = goodXCDays(xcClassifier, args.xc_url, args.xc_times, args.xc_lookahead, tuple(args.xc_start_coordinate), tuple(args.xc_end_coordinate))
+    (xcDays, xcImageURL) = goodXCDays(xcClassifier, args.xc_url, args.xc_times, args.xc_lookahead)
     # Remove any days we have already notified on
     xcDays -= state['xc-days']
     state['xc-days'] |= xcDays
