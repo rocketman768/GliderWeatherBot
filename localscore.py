@@ -55,7 +55,7 @@ class KCVHLocalClassifier:
         imageData = [[dataHcrit(x, y) for x in range(0, KCVH[0] + 16)] for y in reversed(range(KCVH[1] - 16, KCVH[1] + 16))]
 
         plt.clf()
-        plt.imshow(imageData, cmap=plt.cm.get_cmap('seismic'), vmin=0, vmax=7000, interpolation='quadric')
+        plt.imshow(imageData, cmap=plt.cm.get_cmap('rainbow'), vmin=0, vmax=6000, interpolation='quadric')
         plt.colorbar()
         plt.plot([KCVH[0]], [16], 'ko')
         plt.text(KCVH[0], 16-1, 'KCVH', horizontalalignment='right', color='red')

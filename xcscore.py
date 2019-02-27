@@ -152,7 +152,7 @@ class KCVHXCClassifier(AbstractXCClassifier):
         imageData = [[imageData[y][x] for x in range(cropOrigin[0], cropOrigin[0] + cropSize[0])] for y in range(cropOrigin[1], cropOrigin[1] + cropSize[1])]
 
         plt.clf()
-        plt.imshow(imageData, cmap=plt.cm.get_cmap('seismic'), vmin=1000, vmax=11000, interpolation='quadric')
+        plt.imshow(imageData, cmap=plt.cm.get_cmap('rainbow'), vmin=1000, vmax=11000, interpolation='quadric')
         plt.plot([x - cropOrigin[0] for (x,y) in path], [y - cropOrigin[1] for (x,y) in path], 'g-')
         plt.colorbar()
         plt.plot([RELEASE_RANCH[0] - cropOrigin[0]], [dims[1] - RELEASE_RANCH[1] - cropOrigin[1]], 'ko')
