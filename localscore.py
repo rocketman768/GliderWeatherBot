@@ -37,8 +37,8 @@ KCVH = (15,91)
 
 class KCVHLocalClassifier:
     def __init__(self):
-        self.weight = [0.96896464, -0.41886308, 1.04899457]
-        self.bias = -0.351320757116
+        self.weight = [1.46403088, -0.46282701, 0.75155249, -0.84861172]
+        self.bias = 0.185605559061
         self.threshold = 0.0
 
     def imageSummary(self, raspDataTimeSlice):
@@ -76,6 +76,8 @@ class KCVHLocalClassifier:
             (cuBase, _) = raspdata.parseData(file)
         with raspDataTimeSlice.open('sfcsunpct') as file:
             (dataSfcSun, _) = raspdata.parseData(file)
+        with raspDataTimeSlice.open('zblcldif') as file:
+            (odPot, _) = raspdata.parseData(file)
 
         def roi(x, y):
             distance_km = gridResolution_km * math.sqrt( (x-KCVH[0])**2 + (y - KCVH[1])**2 )
@@ -103,15 +105,18 @@ class KCVHLocalClassifier:
 
         roiArea = raspdata.area(roi, dims, lambda x: x > 0.0)
         sunnyCuArea = sum([sunnyCuPredicate(x,y) for x in range(dims[0]) for y in range(dims[1])])
+        totalOd = sum([roi(x,y) * max(0.0, odPot(x,y)) for x in range(dims[0]) for y in range(dims[1])])
 
         areaWhereGlideRatioIsSmall = raspdata.area(glideRatioFromHcrit, dims, lambda x: x < 30.0) / roiArea
-        avgSunnyCuGlideRatio = raspdata.integral(sunnyCuGlideRatio, dims) / sunnyCuArea if sunnyCuArea > 0.0 else 60.0
-        avgSunnyCuBase = raspdata.integral(sunnyCuBase, dims) / (sunnyCuArea + 0.001)
+        # NOTE: the bias below is to make the value defined when sunnyCuArea == 0
+        avgSunnyCuGlideRatio = (raspdata.integral(sunnyCuGlideRatio, dims) + 2 * 60.0) / (sunnyCuArea + 2)
+        # NOTE: the bias on the denominator is to penalize very small areas of sunny cu
+        avgSunnyCuBase = raspdata.integral(sunnyCuBase, dims) / (sunnyCuArea + 5)
 
         #asdf = [[dataHcrit(x, y) for x in range(dims[0])] for y in range(dims[1])]
         #asdf = [[dataHcrit(x, y) for x in range(0, KCVH[0] + 16)] for y in reversed(range(KCVH[1] - 16, KCVH[1] + 16))]
-        #asdf = [[sunnyCuPredicate(x, y) for x in range(dims[0])] for y in reversed(range(dims[1]))]
-        #plt.imshow(asdf, cmap=plt.cm.get_cmap("seismic"), vmin=0, vmax=7000, interpolation='quadric')
+        #asdf = [[sunnyCuBase(x, y) for x in range(dims[0])] for y in reversed(range(dims[1]))]
+        #plt.imshow(asdf, cmap=plt.cm.get_cmap("rainbow"), vmin=0, vmax=7000, interpolation='quadric')
         #plt.colorbar()
         #plt.plot([KCVH[0]], [16], 'ko')
         #plt.text(KCVH[0], 16-1, 'KCVH', horizontalalignment='right', color='red')
@@ -120,12 +125,13 @@ class KCVHLocalClassifier:
         #plt.savefig('/tmp/foo.png', bbox_inches='tight', pad_inches=0)
         #plt.show()
 
-        fRaw = [areaWhereGlideRatioIsSmall, avgSunnyCuGlideRatio, avgSunnyCuBase]
-        fMean = [0.15390316205533594, 34.15506672965842, 5078.433048507441]
-        fStd = [0.06218479626157944, 11.551840246133619, 1535.9700754572946]
+        # NOTE: totalOd is meant to shut down a good forecast, so it should have 0 'mean' here
+        fRaw = [areaWhereGlideRatioIsSmall, avgSunnyCuGlideRatio, avgSunnyCuBase, totalOd]
+        fMean = [0.16924182536830756, 34.73735646864805, 4607.398017239411, 0.0]
+        fStd = [0.06333730851768322, 9.160819727244546, 1048.274081537685, 175856.8555367091]
 
-        return [(x - m) / s for (x,m,s) in zip(fRaw, fMean, fStd)]
         #return fRaw
+        return [(x - m) / s for (x,m,s) in zip(fRaw, fMean, fStd)]
 
     def classify(self, raspDataTimeSlice):
         feature = self.feature(raspDataTimeSlice)
