@@ -34,8 +34,8 @@ class AbstractWaveClassifier:
 
 class KCVHWaveClassifier:
     def __init__(self):
-        self.weight = [0.97959826, 1.05104664, 1.19487818]
-        self.bias = -2.49384207861
+        self.weight = [0.16068532, 1.94050705, -0.4090309]
+        self.bias = -1.8543847882
         self.threshold = 0.0
 
         # Allow override from environment variables
@@ -80,13 +80,13 @@ class KCVHWaveClassifier:
 
         # NOTE: for numerical stability, it is important that the features be
         # roughly centered and of the same magnitude
-        fMean = [0.03250895446017398, 0.037120927852635176, 0.041205600599617545]
-        fStd = [0.04348280488209664, 0.049065388508064946, 0.042385589484773466]
-        fRaw = [liftArea500,
-                liftArea700,
-                liftArea850]
-                #cloudCoverArea]
+        fMean = [0.050099597372324646, 0.04870641925744126, 0.0]
+        fStd = [0.04855065575283511, 0.04097497639308447, 0.36871078532522744]
+        fRaw = [liftArea700,
+                liftArea850,
+                cloudCoverArea]
 
+        #return fRaw
         return [(x - m) / s for (x,m,s) in zip(fRaw, fMean, fStd)]
 
     def classify(self, raspDataTimeSlice):
