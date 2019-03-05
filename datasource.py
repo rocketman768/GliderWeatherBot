@@ -9,6 +9,7 @@ except ImportError:
     from urllib import urlencode
     from urllib2 import urlopen, Request, HTTPError
 
+import datetime
 import os
 from contextlib import closing
 from io import open
@@ -18,6 +19,8 @@ from io import open
 # Represents a 'timeless' instantaneous slice of data
 class RASPDataTimeSlice:
     def time(self):
+        raise NotImplementedError()
+    def date(self):
         raise NotImplementedError()
     def open(self, parameter):
         raise NotImplementedError()
@@ -52,10 +55,13 @@ class WebRASPDataTimeSlice(RASPDataTimeSlice):
         self.__webDataSource = webDataSource
         self.__dayOffset = dayOffset
         self.__time = time
+        self.__today = datetime.date.today()
     def open(self, parameter):
         return self.__webDataSource.open(parameter, self.__dayOffset, self.__time)
     def time(self):
         return self.__time
+    def date(self):
+        return self.__today + datetime.timedelta(self.__dayOffset)
 
 class ArchivedRASPDataTimeSlice(RASPDataTimeSlice):
     def __init__(self, archivedDataSource, time):
@@ -65,6 +71,8 @@ class ArchivedRASPDataTimeSlice(RASPDataTimeSlice):
         return self.__archivedDataSource.open(parameter, self.__time)
     def time(self):
         return self.__time
+    def date(self):
+        raise NotImplementedError()
 
 ## Soundings
 

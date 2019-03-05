@@ -60,7 +60,7 @@ class KCVHLocalClassifier:
         plt.plot([KCVH[0]], [16], 'ko')
         plt.text(KCVH[0], 16-1, 'KCVH', horizontalalignment='right', color='red')
         plt.axis('off')
-        plt.title('Hcrit at {0} lst'.format(raspDataTimeSlice.time()))
+        plt.title('Hcrit {0}+{1} lst'.format(raspDataTimeSlice.date().isoformat(), raspDataTimeSlice.time()))
         plt.savefig(ret, bbox_inches='tight', pad_inches=0)
 
         return ret

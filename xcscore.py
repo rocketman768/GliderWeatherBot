@@ -160,7 +160,7 @@ class KCVHXCClassifier(AbstractXCClassifier):
         plt.text(RELEASE_RANCH[0] - cropOrigin[0], dims[1] - RELEASE_RANCH[1] - cropOrigin[1] - 1, 'Rel. Ranch', horizontalalignment='right', color='black')
         plt.text(BLACK_MOUNTAIN[0], dims[1] - BLACK_MOUNTAIN[1] - cropOrigin[1] - 1, 'Black Mt.', horizontalalignment='right', color='black')
         plt.axis('off')
-        plt.title('Hcrit and Best Path')
+        plt.title('Hcrit + Best Path {0}+{1}'.format(raspDataTimeSlice.date().isoformat(), raspDataTimeSlice.time()))
         plt.savefig(ret, bbox_inches='tight', pad_inches=0)
         #plt.show()
 
