@@ -14,6 +14,8 @@ import os
 from contextlib import closing
 from io import open
 
+import raspdata
+
 ## Abstract Classes
 
 # Represents a 'timeless' instantaneous slice of data
@@ -22,7 +24,7 @@ class RASPDataTimeSlice:
         raise NotImplementedError()
     def date(self):
         raise NotImplementedError()
-    def open(self, parameter):
+    def data(self, parameter):
         raise NotImplementedError()
 
 ## RASP
@@ -30,25 +32,32 @@ class RASPDataTimeSlice:
 class WebRASPDataSource:
     def __init__(self, baseURL):
         self.__baseURL = baseURL
-    def open(self, parameter, dayOffset, time):
-        url = '{0}/OUT+{1}/FCST/{2}.curr.{3}lst.d2.data'.format(
-            self.__baseURL,
-            dayOffset,
-            parameter,
-            time
-        )
-        return closing(urlopen(url))
+        self.__parsedData = {}
+    def data(self, parameter, dayOffset, time):
+        dataString = '{0}-{1}-{2}'.format(parameter, dayOffset, time)
+        if dataString in self.__parsedData:
+            return self.__parsedData[dataString]
+        else:
+            url = '{0}/OUT+{1}/FCST/{2}.curr.{3}lst.d2.data'.format(
+                self.__baseURL,
+                dayOffset,
+                parameter,
+                time
+            )
+            with closing(urlopen(url)) as file:
+                self.__parsedData[dataString] = raspdata.parseData(file)
+            return self.__parsedData[dataString]
 
 class ArchivedRASPDataSource:
     def __init__(self, directory):
         self.__directory = directory
-    def open(self, parameter, time):
+    def data(self, parameter, time):
         filename = '{0}/{1}.curr.{2}lst.d2.data'.format(self.__directory, parameter, time)
         if not os.path.isfile(filename):
             filename = '{0}/{1}.curr.{2}lst.d2.data.pgz'.format(self.__directory, parameter, time)
         if not os.path.isfile(filename):
             raise IOError('File not found for data {0} at time {1}'.format(parameter, time))
-        return open(filename, 'rb')
+        return raspdata.parseData(open(filename, 'rb'))
 
 class WebRASPDataTimeSlice(RASPDataTimeSlice):
     def __init__(self, webDataSource, dayOffset, time):
@@ -56,8 +65,8 @@ class WebRASPDataTimeSlice(RASPDataTimeSlice):
         self.__dayOffset = dayOffset
         self.__time = time
         self.__today = datetime.date.today()
-    def open(self, parameter):
-        return self.__webDataSource.open(parameter, self.__dayOffset, self.__time)
+    def data(self, parameter):
+        return self.__webDataSource.data(parameter, self.__dayOffset, self.__time)
     def time(self):
         return self.__time
     def date(self):
@@ -67,8 +76,8 @@ class ArchivedRASPDataTimeSlice(RASPDataTimeSlice):
     def __init__(self, archivedDataSource, time):
         self.__archivedDataSource = archivedDataSource
         self.__time = time
-    def open(self, parameter):
-        return self.__archivedDataSource.open(parameter, self.__time)
+    def data(self, parameter):
+        return self.__archivedDataSource.data(parameter, self.__time)
     def time(self):
         return self.__time
     def date(self):

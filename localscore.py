@@ -45,8 +45,7 @@ class KCVHLocalClassifier:
         ret = '/tmp/{0}.png'.format(utilities.randomString(8))
 
         try:
-            with raspDataTimeSlice.open('hwcrit') as file:
-                (dataHcrit, dims) = raspdata.parseData(file)
+            (dataHcrit, dims) = raspDataTimeSlice.data('hwcrit')
         except (KeyboardInterrupt, SystemExit):
             raise
         except:
@@ -68,16 +67,11 @@ class KCVHLocalClassifier:
     def feature(self, raspDataTimeSlice):
         gridResolution_km = 4.0
 
-        with raspDataTimeSlice.open('hwcrit') as file:
-            (dataHcrit, dims) = raspdata.parseData(file)
-        with raspDataTimeSlice.open('zsfclcldif') as file:
-            (cuPot, _) = raspdata.parseData(file)
-        with raspDataTimeSlice.open('zsfclcl') as file:
-            (cuBase, _) = raspdata.parseData(file)
-        with raspDataTimeSlice.open('sfcsunpct') as file:
-            (dataSfcSun, _) = raspdata.parseData(file)
-        with raspDataTimeSlice.open('zblcldif') as file:
-            (odPot, _) = raspdata.parseData(file)
+        (dataHcrit, dims) = raspDataTimeSlice.data('hwcrit')
+        (cuPot, _) = raspDataTimeSlice.data('zsfclcldif')
+        (cuBase, _) = raspDataTimeSlice.data('zsfclcl')
+        (dataSfcSun, _) = raspDataTimeSlice.data('sfcsunpct')
+        (odPot, _) = raspDataTimeSlice.data('zblcldif')
 
         def roi(x, y):
             distance_km = gridResolution_km * math.sqrt( (x-KCVH[0])**2 + (y - KCVH[1])**2 )

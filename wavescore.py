@@ -47,14 +47,10 @@ class KCVHWaveClassifier:
             self.threshold = float(os.environ['WEATHERBOT_WAVE_THRESHOLD'])
 
     def feature(self, raspDataTimeSlice):
-        with raspDataTimeSlice.open('press500') as file:
-            (data500mb, dims) = raspdata.parseData(file)
-        with raspDataTimeSlice.open('press700') as file:
-            (data700mb, _) = raspdata.parseData(file)
-        with raspDataTimeSlice.open('press850') as file:
-            (data850mb, _) = raspdata.parseData(file)
-        with raspDataTimeSlice.open('sfcsunpct') as file:
-            (dataSfcSun, _) = raspdata.parseData(file)
+        (data500mb, dims) = raspDataTimeSlice.data('press500')
+        (data700mb, _) = raspDataTimeSlice.data('press700')
+        (data850mb, _) = raspDataTimeSlice.data('press850')
+        (dataSfcSun, _) = raspDataTimeSlice.data('sfcsunpct')
         # NOTE: I would rather just add a separate feature for cloud cover,
         # but right now I do not have enough data to do that. The SVM ends up
         # learning the wrong weights at the moment. So, incorporate cloud cover

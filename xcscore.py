@@ -131,10 +131,8 @@ class KCVHXCClassifier(AbstractXCClassifier):
         ret = '/tmp/{0}.png'.format(utilities.randomString(8))
 
         try:
-            with raspDataTimeSlice.open('hwcrit') as file:
-                (dataHcrit, dims) = raspdata.parseData(file)
-            with raspDataTimeSlice.open('wblmaxmin') as f:
-                wblmaxmin, _ = raspdata.parseData(f)
+            (dataHcrit, dims) = raspDataTimeSlice.data('hwcrit')
+            wblmaxmin, _ = raspDataTimeSlice.data('wblmaxmin')
         except (KeyboardInterrupt, SystemExit):
             raise
         except:
@@ -170,10 +168,8 @@ class KCVHXCClassifier(AbstractXCClassifier):
         startCoordinate = RELEASE_RANCH
         endCoordinate = BLACK_MOUNTAIN
 
-        with raspDataTimeSlice.open('hwcrit') as f:
-            hwcrit, dims = raspdata.parseData(f)
-        with raspDataTimeSlice.open('wblmaxmin') as f:
-            wblmaxmin, _ = raspdata.parseData(f)
+        hwcrit, dims = raspDataTimeSlice.data('hwcrit')
+        wblmaxmin, _ = raspDataTimeSlice.data('wblmaxmin')
 
         height = dims[1]
         width = dims[0]
