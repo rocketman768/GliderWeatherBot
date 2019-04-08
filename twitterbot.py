@@ -262,9 +262,9 @@ if __name__=='__main__':
     parser.add_argument('--local-times', nargs='+', type=int, metavar='lst', default=[1000, 1100, 1200, 1300, 1400, 1500, 1600], help='List of local times to check for local conditions')
     parser.add_argument('--wave-times', nargs='+', type=int, metavar='lst', default=[1000, 1100, 1200, 1300, 1400, 1500, 1600], help='List of local times to check for wave conditions')
     parser.add_argument('--xc-times', nargs='+', type=int, default=[1400], metavar='lst', help='List of local times to check for XC conditions')
-    parser.add_argument('--local-classifier', type=str, default='KCVH', metavar='name', help='Name of the local classifier')
-    parser.add_argument('--wave-classifier', type=str, default='KCVH', metavar='name', help='Name of the wave classifier')
-    parser.add_argument('--xc-classifier', type=str, default='KCVH', metavar='name', help='Name of the XC classifier')
+    parser.add_argument('--local-classifier', type=str, default='KCVH', metavar='name', help='Name of the local classifier or None')
+    parser.add_argument('--wave-classifier', type=str, default='KCVH', metavar='name', help='Name of the wave classifier or None')
+    parser.add_argument('--xc-classifier', type=str, default='KCVH', metavar='name', help='Name of the XC classifier or None')
     args = parser.parse_args()
 
     # Set up logging
@@ -299,25 +299,28 @@ if __name__=='__main__':
     xcClassifier = xcscore.XCClassifierFactory.classifier(args.xc_classifier)
 
     # Run local soaring day detection
-    (localDays, localImageURL) = goodLocalDays(localClassifier, args.local_url, args.local_times, args.local_lookahead)
-    # Remove any days we have already notified on
-    localDays -= state['local-days']
-    state['local-days'] |= localDays
-    tweetAlert('Local Soaring Alert! These days may be good for local soaring: ', localDays, localImageURL, args.local_url)
+    if localClassifier:
+        (localDays, localImageURL) = goodLocalDays(localClassifier, args.local_url, args.local_times, args.local_lookahead)
+        # Remove any days we have already notified on
+        localDays -= state['local-days']
+        state['local-days'] |= localDays
+        tweetAlert('Local Soaring Alert! These days may be good for local soaring: ', localDays, localImageURL, args.local_url)
 
     # Run wave day detection
-    (waveDays, waveImageURL) = goodWaveDays(waveClassifier, args.wave_url, args.wave_times, args.wave_lookahead)
-    # Remove any days we have already notified on
-    waveDays -= state['wave-days']
-    state['wave-days'] |= waveDays
-    tweetAlert('Wave Alert! These days may have wave: ', waveDays, waveImageURL, args.wave_url)
+    if waveClassifier:
+        (waveDays, waveImageURL) = goodWaveDays(waveClassifier, args.wave_url, args.wave_times, args.wave_lookahead)
+        # Remove any days we have already notified on
+        waveDays -= state['wave-days']
+        state['wave-days'] |= waveDays
+        tweetAlert('Wave Alert! These days may have wave: ', waveDays, waveImageURL, args.wave_url)
 
     # Run XC day detection
-    (xcDays, xcImageURL) = goodXCDays(xcClassifier, args.xc_url, args.xc_times, args.xc_lookahead)
-    # Remove any days we have already notified on
-    xcDays -= state['xc-days']
-    state['xc-days'] |= xcDays
-    tweetAlert('XC Alert! These days may be runnable: ', xcDays, xcImageURL, args.xc_url)
+    if xcClassifier:
+        (xcDays, xcImageURL) = goodXCDays(xcClassifier, args.xc_url, args.xc_times, args.xc_lookahead)
+        # Remove any days we have already notified on
+        xcDays -= state['xc-days']
+        state['xc-days'] |= xcDays
+        tweetAlert('XC Alert! These days may be runnable: ', xcDays, xcImageURL, args.xc_url)
 
     # Write state back
     writeState(state, '.state.json')

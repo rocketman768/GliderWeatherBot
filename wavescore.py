@@ -100,8 +100,10 @@ class WaveClassifierFactory:
         return WaveClassifierFactory.__classFromName().keys()
     @staticmethod
     def classifier(name):
-        classFromName = {'KCVH': KCVHWaveClassifier}
-        return WaveClassifierFactory.__classFromName()[name]()
+        if name in WaveClassifierFactory.__classFromName():
+            return WaveClassifierFactory.__classFromName()[name]()
+        else:
+            return None
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Learn good wave days from a dataset')

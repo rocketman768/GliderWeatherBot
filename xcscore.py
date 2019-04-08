@@ -206,7 +206,10 @@ class XCClassifierFactory:
         return XCClassifierFactory.__classFromName().keys()
     @staticmethod
     def classifier(name):
-        return XCClassifierFactory.__classFromName()[name]()
+        if name in XCClassifierFactory.__classFromName():
+            return XCClassifierFactory.__classFromName()[name]()
+        else:
+            return None
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Learn good XC days from a dataset')

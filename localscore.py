@@ -142,8 +142,11 @@ class LocalClassifierFactory:
         return LocalClassifierFactory.__classFromName().keys()
     @staticmethod
     def classifier(name):
-        classFromName = {'KCVH': KCVHLocalClassifier}
-        return LocalClassifierFactory.__classFromName()[name]()
+        if name in LocalClassifierFactory.__classFromName():
+            theClass = LocalClassifierFactory.__classFromName()[name]
+            return theClass()
+        else:
+            return None
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Learn good local days from a dataset')
