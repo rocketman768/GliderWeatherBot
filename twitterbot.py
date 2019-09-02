@@ -123,13 +123,15 @@ def daysString(dates):
     return ret
 
 # Returns a set of good wave days and an image URL
-def goodWaveDays(classifier, baseURL, times, lookahead):
+def goodWaveDays(classifier, baseURL, times, lookahead, skipDates):
     waveDays = set()
     maxWaveScore = -1000.0
     waveImageURL = None
     dataSource = datasource.WebRASPDataSource(baseURL)
     for day in range(lookahead):
         date = datetime.date.today() + datetime.timedelta(day)
+        if date in skipDates:
+            continue
         isWaveDay = False
         isHardToClassify = False
         for time in times:
@@ -154,13 +156,15 @@ def goodWaveDays(classifier, baseURL, times, lookahead):
     return waveDays, waveImageURL
 
 # Detect XC days
-def goodXCDays(classifier, baseURL, times, lookahead):
+def goodXCDays(classifier, baseURL, times, lookahead, skipDates):
     xcDays = set()
     dataSource = datasource.WebRASPDataSource(baseURL)
     maxScore = -1000.0
     bestTimeSlice = None
     for day in range(lookahead):
         date = datetime.date.today() + datetime.timedelta(day)
+        if date in skipDates:
+            continue
         isXcDay = False
         isHardToClassify = False
         for time in times:
@@ -185,13 +189,15 @@ def goodXCDays(classifier, baseURL, times, lookahead):
     return (xcDays, classifier.imageSummary(bestTimeSlice))
 
 # Detect local soaring days
-def goodLocalDays(classifier, baseURL, times, lookahead):
+def goodLocalDays(classifier, baseURL, times, lookahead, skipDates):
     localDays = set()
     dataSource = datasource.WebRASPDataSource(baseURL)
     maxScore = -1000.0
     bestTimeSlice = None
     for day in range(lookahead):
         date = datetime.date.today() + datetime.timedelta(day)
+        if date in skipDates:
+            continue
         isLocalDay = False
         isHardToClassify = False
         for time in times:
@@ -300,25 +306,22 @@ if __name__=='__main__':
 
     # Run local soaring day detection
     if localClassifier:
-        (localDays, localImageURL) = goodLocalDays(localClassifier, args.local_url, args.local_times, args.local_lookahead)
-        # Remove any days we have already notified on
-        localDays -= state['local-days']
+        (localDays, localImageURL) = goodLocalDays(localClassifier, args.local_url, args.local_times, args.local_lookahead, state['local-days'])
+        # Add dates to the set of dates we already notified on
         state['local-days'] |= localDays
         tweetAlert('Local Soaring Alert! These days may be good for local soaring: ', localDays, localImageURL, args.local_url)
 
     # Run wave day detection
     if waveClassifier:
-        (waveDays, waveImageURL) = goodWaveDays(waveClassifier, args.wave_url, args.wave_times, args.wave_lookahead)
-        # Remove any days we have already notified on
-        waveDays -= state['wave-days']
+        (waveDays, waveImageURL) = goodWaveDays(waveClassifier, args.wave_url, args.wave_times, args.wave_lookahead, state['wave-days'])
+        # Add dates to the set of dates we already notified on
         state['wave-days'] |= waveDays
         tweetAlert('Wave Alert! These days may have wave: ', waveDays, waveImageURL, args.wave_url)
 
     # Run XC day detection
     if xcClassifier:
-        (xcDays, xcImageURL) = goodXCDays(xcClassifier, args.xc_url, args.xc_times, args.xc_lookahead)
-        # Remove any days we have already notified on
-        xcDays -= state['xc-days']
+        (xcDays, xcImageURL) = goodXCDays(xcClassifier, args.xc_url, args.xc_times, args.xc_lookahead, state['xc-days'])
+        # Add dates to the set of dates we already notified on
         state['xc-days'] |= xcDays
         tweetAlert('XC Alert! These days may be runnable: ', xcDays, xcImageURL, args.xc_url)
 
